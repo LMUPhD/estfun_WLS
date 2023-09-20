@@ -1,0 +1,93 @@
+
+setwd("C:/Users/classe/Desktop/Diss/Paper3/R")
+source("support.R")
+
+
+# shortcuts
+lavdata        <- object@Data
+lavmodel       <- object@Model
+lavsamplestats <- object@SampleStats
+lavoptions     <- object@Options
+
+
+ntab <- unlist(lavdata@norig)
+ntot <- sum(ntab)
+npar <- lav_object_inspect_npar(object)
+nvar <- ncol(lavsamplestats@cov[[1]])
+
+
+moments <- fitted(object)
+N1 <- 1
+X <- lavdata@X[[1]]
+
+Score.mat <- matrix(NA, ntot, npar) #empty matrix
+
+
+
+################################################################################
+################################# WLS ##########################################
+################################################################################
+
+#polychoric corr
+s = object@SampleStats@cov[[1]]
+
+#thresholed probabilites
+yhat = lavPredict(object, type = "yhat")
+th = lavsamplestats@th[[1]]
+#th.p = t(apply(yhat,1L,  function(x) th*-1 + x   )) #so steht es eigentlich im Paper!
+
+
+### Test: without mu*
+th.p = t(apply(yhat,1L,  function(x) th*-1    ))
+###
+
+
+
+th.pr = VGAM::probitlink( th.p,inverse=T) 
+
+#dummies
+lv = lavdata@ov[["nlev"]]
+Xd = do.call(cbind, lapply(1:nvar, function(i) doDummySingleVar(X,lv,i)  ))
+
+
+###e1
+e1 = Xd-th.pr
+
+
+###e2
+combs = rbind(  combn(1:nvar,2), lav_matrix_vech(s,diagonal=FALSE) ) 
+sigma = apply(combs,2L,function(x) pbivnorm(x = th.p[,x[1]], y = th.p[,x[2]], rho = x[3], recycle = TRUE)  ) #E(y*)
+sigma = sigma - t(apply(th.pr,1L, function(i){    lav_matrix_vech(tcrossprod(i) ,diagonal=FALSE) })) #sigma = E(y*)-mu1mu2
+s_vech = t(apply(e1,1L, function(i){    lav_matrix_vech(tcrossprod(i) ,diagonal=FALSE) })) #s=c( (y1-mu1)(y2-mu2)....
+e2 = s_vech - sigma
+
+###e
+e = cbind(e1,e2)
+
+#weigthing matrix
+W = lavsamplestats@WLS.V[[1]] 
+
+#Delta
+Delta <- computeDelta(lavmodel = lavmodel)[[1]] #should also work for WLS...
+
+############# Try out different things...
+Score.mat = t( t(Delta) %*% W %*% t(e)  )
+
+###split up into two parts... doesn't improve at all...
+#Score.mat1 = t(  t(Delta[1:5,1:5]) %*% W[1:5,1:5] %*% t(e1)   )
+#Score.mat2 = t(  t(Delta[6:15,6]) %*% W[6:15,6:15] %*% t(e2)    )
+
+###every individual seperately... --> same result as above...
+#Score.mat = t(as.matrix( apply(e,1L, function(x){t(Delta) %*% W %*% x}) )  )
+
+################################################################################
+
+
+
+
+Score.mat <- (-1/ntot) * Score.mat #scaling
+
+
+# provide column names
+colnames(Score.mat) <- names(lav_object_inspect_coef(object,
+                                                     type = "free", add.labels = TRUE))
