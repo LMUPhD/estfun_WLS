@@ -16,8 +16,9 @@ getCols <- function(lv,nvar){
 }
 
 
-get_mus <- function(var){  #, th, lv, selcols, catvals
+get_mus <- function(var, th, lv, nvar,  catvals){  
   
+  selcols = getCols(lv,nvar)
   cols = selcols[var,1]:selcols[var,2]
   p.item = th[cols] 
   catprobs.item = sapply(1:lv[var], function(x){
@@ -40,13 +41,46 @@ get_mus <- function(var){  #, th, lv, selcols, catvals
   }))
   
   
-  return(list(mu,catprobs.item))
+  return(mu)
+}
+
+
+pbivnorm_wls <- function(x,y,rho){
+  if(x==Inf & y==Inf){return(1)}
+  if(x==-Inf | y==-Inf){return(0)}
+  else {return(  pbivnorm::pbivnorm(x = x, y = y, rho = rho, recycle = TRUE)   )} 
+}
+
+get_joint_exp <- function(c, X, th, lv, catvals){
+  
+  #-> Ebene: Item zu Item
+  cat_combs = expand.grid(1:lv[c[1]],1:lv[c[2]])
+  
+  vals_var1 = unlist(catvals[c[1]])
+  vals_var2 = unlist(catvals[c[2]])
+  
+  th_var1 = c(-Inf,th[c[1]],Inf)
+  th_var2 = c(-Inf,th[c[2]],Inf)
+  
+  #--> Ebene Kategorie-zu-Kategorie
+  
+  mu_joint = sum( apply(cat_combs, 1L, function(x){
+    s = unlist(x+1)
+    x = unlist(x)
+    p_katkat = sum(c(pbivnorm_wls(x = th_var1[s[1]], y =th_var2[s[2]], rho = c[3]), 
+                     pbivnorm_wls(x = th_var1[s[1]-1], y =th_var2[s[2]], rho = c[3])*-1,
+                     pbivnorm_wls(x = th_var1[s[1]], y =th_var2[s[2]-1], rho = c[3])*-1,
+                     pbivnorm_wls(x = th_var1[s[1]-1], y =th_var2[s[2]-1], rho = c[3])))
+    vals_var1[x[1]]*vals_var2[x[2]]*p_katkat
+  }) )
+  
+  return(mu_joint)
 }
 
 
 
 
-doDummySingleVar <- function(X,lv,num){
+doDummySingleVar <- function(X,lv,ntot,num){
   Xd = matrix(NA,nrow = ntot, ncol =  lv[num]-1 ) 
   x = X[,num]
   minx = min(x)
@@ -59,37 +93,6 @@ doDummySingleVar <- function(X,lv,num){
   }
   return(Xd)
 }
-
-
-
-
-
-
-
-
-
-
-
-
-#getProbItem <- function(X,lv,thx,num){
-#  x=X[,num]
-#  minx = min(x)
-#  catprops = cbind(minx:lv[num],c(1,thx[thx[,1]==num, 2]))
-#  x.pr = sapply(x, function(xx) catprops[catprops[,1] == xx, 2])
-#  return(x.pr)
-#}
-
-
-#getSigmajk <- function(X,lv,th_idx,s.pr,combs,row){
-#  x=X[row,]
-#  minx = apply(X,2,min)
-#  catths = lapply(1:nvar,function(y) cbind(minx[y]:lv[y],c(1,th_idx[th_idx[,1]==y, 2]))  )
-#  
-#  sigma_jk = apply(combs, 2, function(xx){  VGAM::probitlink( -1*(catths[[xx[1]]][catths[[xx[1]]][,1] == x[xx[1]], 2] + catths[[xx[2]]][catths[[xx[2]]][,1] == x[xx[2]], 2]),inverse=T )  - s.pr[xx[1]]*s.pr[xx[2]]    })
-#  return(sigma_jk)
-#}
-
-
 
 
 
