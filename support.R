@@ -47,11 +47,16 @@ get_mus <- function(var, th, lv, nvar,  catvals){
 
 pbivnorm_wls <- function(x,y,rho){
   if(x==Inf & y==Inf){return(1)}
-  if(x==-Inf | y==-Inf){return(0)}
+  else if(x==-Inf | y==-Inf){return(0)}
+  else if(x==Inf & y>1){return(   pbivnorm::pbivnorm(x = Inf, y = 1, rho = rho, recycle = TRUE)    )}
+  else if(x>1 & y==Inf){return(   pbivnorm::pbivnorm(x = 1, y = Inf, rho = rho, recycle = TRUE)    )}
   else {return(  pbivnorm::pbivnorm(x = x, y = y, rho = rho, recycle = TRUE)   )} 
 }
 
-get_joint_exp <- function(c, X, th, lv, catvals){
+
+get_joint_exp <- function(c, X, th, lv, nvar, catvals){
+  
+  selcols = getCols(lv,nvar)
   
   #-> Ebene: Item zu Item
   cat_combs = expand.grid(1:lv[c[1]],1:lv[c[2]])
@@ -59,18 +64,21 @@ get_joint_exp <- function(c, X, th, lv, catvals){
   vals_var1 = unlist(catvals[c[1]])
   vals_var2 = unlist(catvals[c[2]])
   
-  th_var1 = c(-Inf,th[c[1]],Inf)
-  th_var2 = c(-Inf,th[c[2]],Inf)
+  wth1=selcols[c[1],1]:selcols[c[1],2]
+  wth2=selcols[c[2],1]:selcols[c[2],2]
+  th_var1 = c(-Inf,th[wth1],Inf)
+  th_var2 = c(-Inf,th[wth2],Inf)
   
   #--> Ebene Kategorie-zu-Kategorie
   
   mu_joint = sum( apply(cat_combs, 1L, function(x){
     s = unlist(x+1)
     x = unlist(x)
-    p_katkat = sum(c(pbivnorm_wls(x = th_var1[s[1]], y =th_var2[s[2]], rho = c[3]), 
-                     pbivnorm_wls(x = th_var1[s[1]-1], y =th_var2[s[2]], rho = c[3])*-1,
-                     pbivnorm_wls(x = th_var1[s[1]], y =th_var2[s[2]-1], rho = c[3])*-1,
-                     pbivnorm_wls(x = th_var1[s[1]-1], y =th_var2[s[2]-1], rho = c[3])))
+    p_katkat = sum(pbivnorm_wls(x = th_var1[s[1]], y =th_var2[s[2]], rho = c[3]), 
+                   pbivnorm_wls(x = th_var1[s[1]-1], y =th_var2[s[2]], rho = c[3])*-1,
+                   pbivnorm_wls(x = th_var1[s[1]], y =th_var2[s[2]-1], rho = c[3])*-1,
+                   pbivnorm_wls(x = th_var1[s[1]-1], y =th_var2[s[2]-1], rho = c[3]))
+    print(p_katkat)
     vals_var1[x[1]]*vals_var2[x[2]]*p_katkat
   }) )
   
