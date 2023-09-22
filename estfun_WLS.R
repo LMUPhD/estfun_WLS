@@ -18,7 +18,7 @@ estfun.WLS <- function(object){
   nvar <- ncol(lavsamplestats@cov[[1]])
   
   
-  moments <- fitted(object)
+  #moments <- lavaan::fitted(object)
   N1 <- 1
   X <- lavdata@X[[1]]
   
@@ -51,11 +51,11 @@ estfun.WLS <- function(object){
   mus = unlist(lapply(1:nvar, function(x) get_mus(x, th, lv, nvar, catvals)   ))
   y_minus_mu = t( apply(X, 1L, function(x) x - mus ) ) 
   
-  combs = rbind(  combn(1:nvar,2), lav_matrix_vech(polychors,diagonal=FALSE) ) 
+  combs = rbind(  combn(1:nvar,2), lavaan::lav_matrix_vech(polychors,diagonal=FALSE) ) 
   joint_exps = apply(combs, 2L, function(x) get_joint_exp(x, X, th, lv, nvar, catvals)  ) #E(y1y2)
-  sigma =  joint_exps - t(  lav_matrix_vech(tcrossprod(mus) ,diagonal=FALSE) )  #E(y1y2)-mu1mu2
+  sigma =  joint_exps - t(  lavaan::lav_matrix_vech(tcrossprod(mus) ,diagonal=FALSE) )  #E(y1y2)-mu1mu2
   
-  s_vech = t(apply(y_minus_mu, 1L, function(i){    lav_matrix_vech(tcrossprod(i) ,diagonal=FALSE) })) #s=c( (y1-mu1)(y2-mu2)....
+  s_vech = t(apply(y_minus_mu, 1L, function(i){    lavaan::lav_matrix_vech(tcrossprod(i) ,diagonal=FALSE) })) #s=c( (y1-mu1)(y2-mu2)....
   
   e2 = t( apply(s_vech, 1L, function(x) x - sigma ) ) 
   

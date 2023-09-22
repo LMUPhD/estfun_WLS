@@ -1,7 +1,7 @@
 
 ################################ my code
 
-
+library(lavaan)
 
 getCols <- function(lv,nvar){
   maxcols = mincols = c()
@@ -48,9 +48,9 @@ get_mus <- function(var, th, lv, nvar,  catvals){
 pbivnorm_wls <- function(x,y,rho){
   if(x==Inf & y==Inf){return(1)}
   else if(x==-Inf | y==-Inf){return(0)}
-  else if(x==Inf & y>1){return(   pbivnorm::pbivnorm(x = Inf, y = 1, rho = rho, recycle = TRUE)    )}
-  else if(x>1 & y==Inf){return(   pbivnorm::pbivnorm(x = 1, y = Inf, rho = rho, recycle = TRUE)    )}
-  else {return(  pbivnorm::pbivnorm(x = x, y = y, rho = rho, recycle = TRUE)   )} 
+  else if(x==Inf){return(   VGAM::probitlink(y, inverse=T)    )}
+  else if(y==Inf){return(   VGAM::probitlink(x, inverse=T)    )}
+  else {return(  pbv::pbvnorm(x = x, y = y, rho = rho)   )} 
 }
 
 
@@ -78,7 +78,7 @@ get_joint_exp <- function(c, X, th, lv, nvar, catvals){
                    pbivnorm_wls(x = th_var1[s[1]-1], y =th_var2[s[2]], rho = c[3])*-1,
                    pbivnorm_wls(x = th_var1[s[1]], y =th_var2[s[2]-1], rho = c[3])*-1,
                    pbivnorm_wls(x = th_var1[s[1]-1], y =th_var2[s[2]-1], rho = c[3]))
-    print(p_katkat)
+    #print(p_katkat)
     vals_var1[x[1]]*vals_var2[x[2]]*p_katkat
   }) )
   

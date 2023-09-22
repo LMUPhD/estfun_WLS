@@ -37,7 +37,7 @@ datagen <- function(model,times=4,ID=250,schwellen=6,items=5,rmsea_cutoff=.05){
     nlatvar = 1
     
     ## Simu 1: Alle Parameter unterschiedlich, keine random data 
-    kappa_shift <- c(0,round(rnorm(n = m-1, mean=0, sd = 1),2)) #"Erwartungswert"-Shift pro Item
+    kappa_shift <- round(rnorm(n = m, mean=0, sd = 0.5),2) #"Erwartungswert"-Shift pro Item
     perz_kappa <- matrix(NA,ncol = l, nrow = m)#Perzentile, um die kappa-Parameter zu bestimmen
     for(i in 1:(m)){perz_kappa[i,] <- round(schwellen_probs(l) + randparams(num.min=0.01,num.max=0.05, l) ,2)}
     beta <- c(1,round(runif(min=0.3,max=1.6, m-1),2)) #Discrimination parameter
@@ -138,7 +138,6 @@ datagen <- function(model,times=4,ID=250,schwellen=6,items=5,rmsea_cutoff=.05){
         saved_pvalues[[h]] <- c(fitMeasures(fit_ord)["pvalue"],fitMeasures(fit_num)["pvalue"]); names(saved_pvalues)[[h]] <- paste0("pvalue",h)
         saved_rmseas[[h]] <- c(fitMeasures(fit_ord)["rmsea"],fitMeasures(fit_num)["rmsea"]); names(saved_rmseas)[[h]] <- paste0("rmsea",h)
         saved_vars[[h]] <- var; names(saved_vars)[[h]] <- paste0("var",h)
-        saved_means[[h]] <- mean; names(saved_means)[[h]] <- paste0("means",h)
         saved_kappas[[h]] <- kappa; names(saved_kappas)[[h]] <- paste0("kappa",h)
         saved_betas[[h]] <- beta; names(saved_betas)[[h]] <- paste0("beta",h)
         saved_latvars[[h]] <- Psi; names(saved_latvars)[[h]] <- paste0("true_var",h)
@@ -151,8 +150,8 @@ datagen <- function(model,times=4,ID=250,schwellen=6,items=5,rmsea_cutoff=.05){
     } else {next}
   } 
   
-  fits <- list(saved_pvalues,saved_rmseas,saved_vars,saved_means,saved_kappas,saved_betas,saved_latvars,saved_data) 
-  names(fits) <- c("pvalues","rmseas","vars","means","kappas","betas","latvars","data")
+  fits <- list(saved_pvalues,saved_rmseas,saved_vars,saved_kappas,saved_betas,saved_latvars,saved_data) 
+  names(fits) <- c("pvalues","rmseas","vars","kappas","betas","latvars","data")
   return(fits)
 }
 
