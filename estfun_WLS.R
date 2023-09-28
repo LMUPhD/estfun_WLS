@@ -31,10 +31,11 @@ estfun.WLS <- function(object){
   ################################################################################
   
   #polychoric corr
-  polychors = object@SampleStats@cov[[1]]
-  #s = lavaan::fitted(object)$cov  #doesnt work...
+  polychors = lavsamplestats@cov[[1]]
+  #polychors = lavaan::fitted(object)$cov  #doesnt work...
   
   th = lavsamplestats@th[[1]]
+  #th = object@Fit@TH[[1]]
   th.pr = VGAM::probitlink( th*-1,inverse=T) 
   
   #dummies

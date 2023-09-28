@@ -2,6 +2,25 @@
 setwd("C:/Users/classe/Desktop/Diss/Paper3/estfun_WLS")
 source("estfun_WLS.R")
 
+################################################################################
+######################### Ordinal Data ##################################### 
+################################################################################
+
+source("univ_simu.R")
+
+fits_random <- datagen(schwellen = 2,                                           #je mehr Schwellen, desdo ungenauer wird es...
+                       ID=1000,
+                       times=1,
+                       items=4) 
+
+simu=fits_random[["data"]][["data1"]][[1]]
+model= fits_random[["model"]][[1]]
+
+fit_ord <- lavaan::cfa(model, data = simu, ordered = TRUE, estimator = "WLS" ) 
+WLS_scores <- estfun.WLS(fit_ord)
+colSums(WLS_scores)
+
+#muss mu anders berechnet werden?? E(Y1) = sum y1*P(y1y2)
 
 ################################################################################
 ######################### Dichotomous Data ##################################### 
@@ -24,25 +43,13 @@ WLS_scores <- estfun.WLS(fit_ord)
 
 object = fit_ord
 
+
+
 ################################################################################
-######################### Ordinal Data ##################################### 
+########################## try strucchange #####################################
 ################################################################################
 
-source("univ_simu.R")
 
-model = 'Eta1 =~ simuvar1 + simuvar2 + simuvar3 + simuvar4 + simuvar5'
-fits_random <- datagen(model = model, 
-                       schwellen = 2,   #je mehr Schwellen, desdo ungenauer wird es...
-                       rmsea_cutoff = .05,
-                       ID=500,
-                       times=1,
-                       items=5) 
-
-simu=fits_random[["data"]][["data1"]][[1]]
-
-fit_ord <- lavaan::cfa(model, data = simu, ordered = TRUE, estimator = "WLS" ) 
-WLS_scores <- estfun.WLS(fit_ord)
-colSums(WLS_scores)
 
 
 #compare with ML
