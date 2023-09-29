@@ -104,9 +104,7 @@ doDummySingleVar <- function(X,lv,ntot,num){
 
 
 
-
-
-#get_joint_exp <- function(c, X, th, lv, nvar, catvals){
+#get_joint_exp <- function(c, X, lv, nvar, catvals, catprobs){
 #  
 #  selcols = getCols(lv,nvar)
 #  
@@ -116,20 +114,17 @@ doDummySingleVar <- function(X,lv,ntot,num){
 #  vals_var1 = unlist(catvals[c[1]])
 #  vals_var2 = unlist(catvals[c[2]])
 #  
-#  wth1=selcols[c[1],1]:selcols[c[1],2]
-#  wth2=selcols[c[2],1]:selcols[c[2],2]
-#  th_var1 = c(-Inf,th[wth1],Inf)
-#  th_var2 = c(-Inf,th[wth2],Inf)
+#  probs_var1 = unlist(catprobs[,c[1]])
+#  probs_var2 = unlist(catprobs[,c[2]])
 #  
-#  #--> Ebene Kategorie-zu-Kategorie
-#  p_katkats = apply(cat_combs, 1L, function(x){
-#    s = unlist(x+1)
-#    x = unlist(x)
-#    p_katkat = sum(pbivnorm_wls(x = th_var1[s[1]], y =th_var2[s[2]], rho = c[3]), 
-#                   pbivnorm_wls(x = th_var1[s[1]-1], y =th_var2[s[2]], rho = c[3])*-1,
-#                   pbivnorm_wls(x = th_var1[s[1]], y =th_var2[s[2]-1], rho = c[3])*-1,
-#                   pbivnorm_wls(x = th_var1[s[1]-1], y =th_var2[s[2]-1], rho = c[3]))
-#  }) 
+#  
+#  ths = cbind(VGAM::probitlink(probs_var1[cat_combs[,1]]),
+#              VGAM::probitlink(probs_var2[cat_combs[,2]]),
+#              rep(c[3],nrow(cat_combs)))
+#  
+#  p_katkats = apply(ths, 1L, function(g) pbv::pbvnorm(x = g[1], y = g[2], rho = g[3]))
+#  
+#  
 #  
 #  mu_joint = lapply(1:nrow(cat_combs), function(x){
 #    list(
@@ -143,8 +138,6 @@ doDummySingleVar <- function(X,lv,ntot,num){
 #  
 #  return(sum(unlist(sigma_mat[,1]))  -  sum(unlist(sigma_mat[,2]))*sum(unlist(sigma_mat[,3])))
 #}
-
-
 
 
 
