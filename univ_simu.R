@@ -123,7 +123,7 @@ datagen <- function(times=4,ID=250,schwellen=6,items=5,rmsea_cutoff=.05){
     
     
     
-    print(paste("Iteration ",g)) #wieviele Iterationen braucht es?
+    #print(paste("Iteration ",g)) #wieviele Iterationen braucht es?
     g=g+1
     
     
