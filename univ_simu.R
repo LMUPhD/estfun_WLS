@@ -2,7 +2,7 @@
 
 
 #no clear structure --> forest needeed
-datagen <- function(times=4,ID=250,schwellen=6,items=5,rmsea_cutoff=.05){ 
+datagen <- function(times=1,ID=250,schwellen=6,items=5,rmsea_cutoff=.05){ 
   
   
   

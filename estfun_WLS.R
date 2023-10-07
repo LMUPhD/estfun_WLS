@@ -32,7 +32,7 @@ estfun.WLS <- function(object){
   
   #polychoric corr
   polychors = lavsamplestats@cov[[1]]
-  #polychors = lavaan::fitted(object)$cov  #doesnt work...
+  #polychors = object@Fit@Sigma.hat[[1]]  #doesnt work...
   
   th = lavsamplestats@th[[1]]
   #th = object@Fit@TH[[1]]
@@ -58,6 +58,11 @@ estfun.WLS <- function(object){
   
   s_vech = t(apply(y_minus_mu, 1L, function(i){    lavaan::lav_matrix_vech(tcrossprod(i) ,diagonal=FALSE) })) #s=c( (y1-mu1)(y2-mu2)....
   
+  #?
+  correct = colMeans(s_vech) - sigma
+  s_vech = t( apply(s_vech, 1L, function(x) x - correct ) )
+  #
+  
   e2 = t( apply(s_vech, 1L, function(x) x - sigma ) ) 
   
   
@@ -67,6 +72,7 @@ estfun.WLS <- function(object){
   
   #weigthing matrix
   W = lavsamplestats@WLS.V[[1]] 
+  #W = diag(lavsamplestats@WLS.VD[[1]] )
   
   #Delta
   Delta <- computeDelta(lavmodel = lavmodel)[[1]] #should also work for WLS...
