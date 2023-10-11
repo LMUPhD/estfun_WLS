@@ -9,7 +9,7 @@ source("multi_simu.R")
 
 
 
-model = '
+model_lav = '
   Eta1 =~ 1*simuvar1 + 1*simuvar2 + 1*simuvar3 
   Eta2 =~ 1*simuvar4 + 1*simuvar5 + 1*simuvar6 
   Eta3 =~ 1*simuvar7 + 1*simuvar8 + 1*simuvar9 
@@ -17,7 +17,7 @@ model = '
   Beta3 =~ 1*simuvar3 + 1*simuvar6 + 1*simuvar9'
 
 
-fits_random <- datagen(model = model,rmsea_cutoff = .05,ID=1000) 
+fits_random <- datagen(model = model_lav,rmsea_cutoff = .05,ID=1000) 
 simu=fits_random[["data"]][["data1"]]
 
 
@@ -28,26 +28,29 @@ simu=fits_random[["data"]][["data1"]]
 
 
 #lavaan
-fit_ord <- lavaan::cfa(model, data = simu, ordered = TRUE, estimator = "WLS",std.lv=F ) #estimate variances and covariances of latent variables
-colSums(estfun.WLS(fit_ord)) #autsch
+fit_ord <- lavaan::cfa(model_lav, data = simu, ordered = TRUE, estimator = "WLS",std.lv=F ) #estimate variances and covariances of latent variables
+colSums(estfun.WLS(fit_ord)) 
 
 
 
 #mirt
-model <- mirt::mirt.model('
+model_mirt <- mirt::mirt.model('
 Eta1 = 1-3
 Eta2 = 4-6
 Eta3 = 7-9
 Beta2 = 2,5,8
 Beta3 = 3,6,9
 COV=Eta1*Eta2*Eta3*Beta2*Beta3
-FIXED = (1-9, a1)
-FIXED = (1-9, a2)
-FIXED = (1-9, a3)
-FIXED = (1-9, a4)
-FIXED = (1-9, a5)') #????
-fit_mirt <- mirt::mirt(data=simu, model=model, itemtype="graded",method='MHRM' ) #pars="values" #'EM',TOL = NaN 
+FIXED = (2-9, a1)
+FIXED = (1-3,5-9, a2)
+FIXED = (1-6,8,9, a3)
+FIXED = (1,3-9, a4)
+FIXED = (1,2,4-9, a5)') #????
+fit_mirt <- mirt::mirt(data=simu, model=model_mirt, itemtype="graded",method='MHRM' ) #pars="values" #'EM',TOL = NaN 
+mirt::M2(fit_mirt)
 
+
+####select a simpler model!!
 
 ################################################################################
 ########################## try strucchange #####################################
