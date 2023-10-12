@@ -16,7 +16,7 @@ estfun.WLS <- function(object){
   ntot <- sum(ntab)
   npar <- lav_object_inspect_npar(object)
   nvar <- ncol(lavsamplestats@cov[[1]])
-  
+  lv = lavdata@ov[["nlev"]]
   
   #moments <- lavaan::fitted(object)
   N1 <- 1
@@ -42,9 +42,9 @@ estfun.WLS <- function(object){
   ###e2 
   mus = colMeans(X)
   y_minus_mu = t( apply(X, 1L, function(x) x - mus ) ) 
-  sigma = lavaan::lav_matrix_vech(cov(X) ,diagonal=FALSE)
   s_vech = t(apply(y_minus_mu, 1L, function(i){    lavaan::lav_matrix_vech(tcrossprod(i) ,diagonal=FALSE) })) #s=c( (y1-mu1)(y2-mu2)....
-
+  sigma = colMeans(s_vech)
+  
   
   e2 = t( apply(s_vech, 1L, function(x) x - sigma ) ) 
   
