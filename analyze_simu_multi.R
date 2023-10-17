@@ -10,14 +10,12 @@ source("multi_simu.R")
 
 
 model_lav = '
-  Eta1 =~ 1*simuvar1 + 1*simuvar2 + 1*simuvar3 
-  Eta2 =~ 1*simuvar4 + 1*simuvar5 + 1*simuvar6 
-  Eta3 =~ 1*simuvar7 + 1*simuvar8 + 1*simuvar9 
-  Beta2 =~ 1*simuvar2 + 1*simuvar5 + 1*simuvar8
-  Beta3 =~ 1*simuvar3 + 1*simuvar6 + 1*simuvar9'
+  Eta1 =~ simuvar1 + simuvar2 + simuvar3 
+  Eta2 =~ simuvar4 + simuvar5 + simuvar6 
+  Eta3 =~ simuvar7 + simuvar8 + simuvar9'
 
 
-fits_random <- datagen(model = model_lav,rmsea_cutoff = .05,ID=1000) 
+fits_random <- datagen(model = model_lav,rmsea_cutoff = .05,ID=1000,items=3,latvar=3,schwellen=4) 
 simu=fits_random[["data"]][["data1"]]
 
 

@@ -1,0 +1,6 @@
+results: 
+
+231004: Funktion so einprogrammiert wie in Muthen1997
+231007: "Korrektur" von sigma so dass sigma null ist
+231010: th & polychors aus Modell verwendet (nicht aus samplestats) --> funtioniert nicht
+231011: simplified version --> sigma = cov & mus = means  

@@ -1,7 +1,7 @@
 
 
 #PIEG model without mean structure and with standard LV-variance
-datagen <- function(model,times=1,ID=250,korr="random",schwellen=4,items=3,timepoints=3,rmsea_cutoff=.05){ 
+datagen <- function(model,times=1,ID=250,korr="random",schwellen=4,items=3,latvar=3,rmsea_cutoff=.05){ 
   
   
   randparams <- function(N,num.min,rnd=2,num.max=0.99) {
@@ -34,14 +34,15 @@ datagen <- function(model,times=1,ID=250,korr="random",schwellen=4,items=3,timep
   h=1;g=1
   while(h<(times+1)){ 
     l <- schwellen #Anzahl an Schwellen
-    m <- items #Anzahl an Items pro Level-1 latente Variable
-    n <- timepoints #Anzahl an Level-1 latente Variablen
-    nlatvar = n+(m-1)
+    m <- items #Anzahl an Items pro latente Variable
+    n <- latvar #Anzahl an latente Variablen
+    nlatvar = n
     
     ## Simu 1: Alle Parameter unterschiedlich, keine random data (obviously: keine konfundierung)
     kappa_shift <- round(rnorm(n = n*m, mean=0, sd = 1),2) #"Erwartungswert"-Shift pro Item
-    perz_kappa <- matrix(NA,ncol = l, nrow = n*m)#Perzentile, um die kappa-Parameter zu bestimmen
+    perz_kappa <- matrix(NA,ncol = l, nrow = n*m) #Perzentile, um die kappa-Parameter zu bestimmen
     for(i in 1:(n*m)){perz_kappa[i,] <- round(schwellen_probs(l) + randparams(num.min=0.01,num.max=0.05, l) ,2)}
+    beta <- sapply(1:n, function(x)  c(1,round(runif(min=0.3,max=1.6, m-1),2))) #Discrimination parameter
     
     #Variablen erstellen
     
@@ -57,16 +58,16 @@ datagen <- function(model,times=1,ID=250,korr="random",schwellen=4,items=3,timep
     
     
     ## Variablennamen 
+
     Eta <- data_mtx[,1:n] 
-    Beta <- cbind(rep(0,ID),  data_mtx[,(n+1):nlatvar] )
-    
+
     
     
     ## Kappa Matrix erstellen
     kappa <- matrix(ncol = n*m,nrow = l);v=1 #ncol = L-1 Variablen * Items ; nrow = schwellen
     for(t in 1:n){ #time points
       for(i in 1:m){ # items
-        quant <- as.vector(quantile(Eta[,t]  + Beta[,i], probs= perz_kappa[v,])) - kappa_shift[v] 
+        quant <- as.vector(quantile(beta[i,t]*Eta[,t]  , probs= perz_kappa[v,])) - kappa_shift[v] 
         kappa[1:l,v] <- quant 
         v <- v+1
       }}
@@ -74,15 +75,15 @@ datagen <- function(model,times=1,ID=250,korr="random",schwellen=4,items=3,timep
     
     
     ## Daten generieren
-    probitY <- array(NA,c(ID,l,m,n)) #(ID, Schwellen, Items pro L-1 Var., L-1 Var.)
+    probitY <- array(NA,c(ID,l,m,n)) #(ID, Schwellen, Items, Lat.Var.)
     PY <-  array(NA,c(ID,l,m,n)) 
     Pis <-  array(NA,c(ID,l+1,m,n))
     Y <- array(NA,c(ID,m,n));v=1 
     
-    for (t in 1:n) { #Time points
+    for (t in 1:n) { #Latvars
       for (i in 1:m) { #Items 
         for (k in 1:l) { #Schwellen
-          probitY[,k,i,t] <-  Eta[,t] + Beta[,i] - kappa[k,v] 
+          probitY[,k,i,t] <-   beta[i,t]*Eta[,t] - kappa[k,v] 
           PY[,k,i,t] <- VGAM::probitlink(probitY[,k,i,t],inverse=T) 
           if (k == 1) Pis[,k,i,t] <- 1 - PY[,k,i,t] #P(Y=0)
           if (k > 1) Pis[,k,i,t] <- PY[,k-1,i,t] - PY[,k,i,t] 
@@ -118,7 +119,7 @@ datagen <- function(model,times=1,ID=250,korr="random",schwellen=4,items=3,timep
     
     
     ## Model schätzen
-    fit_ord <- tryCatch({lavaan::cfa(model = model, data=table, ordered = output, estimator="WLS", do.fit=T, std.lv=F, control=list(iter.max=500))},warning = function(w){return(NA)},error = function(e){return(NA)})
+    fit_ord <- tryCatch({lavaan::cfa(model = model, data=table, ordered = output, estimator="WLS", do.fit=T, std.lv=T, control=list(iter.max=500))},warning = function(w){return(NA)},error = function(e){return(NA)})
     
     ##Ergebnisse Zusammenfügen!
     if( suppressWarnings(!is.na(fit_ord))  ){
