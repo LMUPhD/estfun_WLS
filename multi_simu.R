@@ -1,8 +1,11 @@
 
 
 #PIEG model without mean structure and with standard LV-variance
-datagen <- function(model,times=1,ID=250,korr="random",schwellen=4,items=3,latvar=3,rmsea_cutoff=.05){ 
-  
+datagen <- function(model,mode="all",times=1,ID=250,korr="random",schwellen=4,items=3,latvar=3,rmsea_cutoff=.05){ 
+  l <- schwellen #Anzahl an Schwellen
+  m <- items #Anzahl an Items pro latente Variable
+  n <- latvar #Anzahl an latente Variablen
+  nlatvar = n 
   
   randparams <- function(N,num.min,rnd=2,num.max=0.99) {
     random.numbers <- round(runif(min=num.min,max=num.max, N),rnd)
@@ -26,32 +29,50 @@ datagen <- function(model,times=1,ID=250,korr="random",schwellen=4,items=3,latva
   library(faux)
   library(resample)
   
-  for(i in c("saved_pvalues","saved_rmseas","saved_kappas","saved_data","saved_covs","saved_cors","saved_vars","saved_latvars")){assign(i,list())}
+  for(i in c("saved_pvalues","saved_rmseas","saved_kappas","saved_data","saved_covs","saved_betas","saved_vars","saved_latvars")){assign(i,list())}
+  
+  #unterschiedliche modes:
+  if(mode == "thresholds" | mode == "betas" | mode == "none"){
+    if(korr=="high"){mulmin=0.8;mulmax=0.9;errvar=.1} else if(korr=="low"){mulmin=0.1;mulmax=0.3;errvar=1} else if(korr=="random"){mulmin=0.1;mulmax=0.9;errvar=runif(1,min = .3, max = .9)}
+    mulpis <- randparams(num.min=mulmin,num.max=mulmax, nlatvar) 
+    
+    if(mode == "thresholds" | mode == "none"){
+      beta <- sapply(1:n, function(x)  c(1,round(runif(min=0.3,max=1.6, m-1),2))) #Discrimination parameter
+    }
+    
+    if(mode == "betas" | mode == "none"){
+      kappa_shift <- round(rnorm(n = n*m, mean=0, sd = 1),2) #"Erwartungswert"-Shift pro Item
+      perz_kappa <- matrix(NA,ncol = l, nrow = n*m) #Perzentile, um die kappa-Parameter zu bestimmen
+      for(i in 1:(n*m)){perz_kappa[i,] <- round(schwellen_probs(l) + randparams(num.min=0.01,num.max=0.05, l) ,2)}
+    }
+  }
+
   
   #####################################################################################
   ################# Algorithmus
   #####################################################################################
   h=1;g=1
-  while(h<(times+1)){ 
-    l <- schwellen #Anzahl an Schwellen
-    m <- items #Anzahl an Items pro latente Variable
-    n <- latvar #Anzahl an latente Variablen
-    nlatvar = n
+  while(h<(times+1) & g<11){ #max. 10 Widerholungen...
+
     
-    ## Simu 1: Alle Parameter unterschiedlich, keine random data (obviously: keine konfundierung)
-    kappa_shift <- round(rnorm(n = n*m, mean=0, sd = 1),2) #"Erwartungswert"-Shift pro Item
-    perz_kappa <- matrix(NA,ncol = l, nrow = n*m) #Perzentile, um die kappa-Parameter zu bestimmen
-    for(i in 1:(n*m)){perz_kappa[i,] <- round(schwellen_probs(l) + randparams(num.min=0.01,num.max=0.05, l) ,2)}
-    beta <- sapply(1:n, function(x)  c(1,round(runif(min=0.3,max=1.6, m-1),2))) #Discrimination parameter
+    #Alle Parameter unterschiedlich
+    if(mode == "all"){
+      if(korr=="high"){mulmin=0.8;mulmax=0.9;errvar=.1} else if(korr=="low"){mulmin=0.1;mulmax=0.3;errvar=1} else if(korr=="random"){mulmin=0.1;mulmax=0.9;errvar=runif(1,min = .3, max = .9)}
+      mulpis <- randparams(num.min=mulmin,num.max=mulmax, nlatvar) 
+    }
+    if(mode=="betas" | mode == "all"){
+      beta <- sapply(1:n, function(x)  c(1,round(runif(min=0.3,max=1.6, m-1),2))) #Discrimination parameter
+    }
+    if(mode == "thresholds" | mode == "all"){
+      kappa_shift <- round(rnorm(n = n*m, mean=0, sd = 1),2) #"Erwartungswert"-Shift pro Item
+      perz_kappa <- matrix(NA,ncol = l, nrow = n*m) #Perzentile, um die kappa-Parameter zu bestimmen
+      for(i in 1:(n*m)){perz_kappa[i,] <- round(schwellen_probs(l) + randparams(num.min=0.01,num.max=0.05, l) ,2)}
+    }
     
     #Variablen erstellen
     
-    #hohe vs. geringe vs. random vs. Korrelation
-    if(korr=="high"){mulmin=0.8;mulmax=0.9;errvar=.1} else if(korr=="low"){mulmin=0.1;mulmax=0.3;errvar=1} else if(korr=="random"){mulmin=0.1;mulmax=0.9;errvar=runif(1,min = .3, max = .9)}
-    
+
     Psi <- rnorm(ID,0,1)
-    mulpis <- randparams(num.min=mulmin,num.max=mulmax, nlatvar) 
-    
     
     data_mtx <- mulpis %*% t(Psi)  
     data_mtx <- t(data_mtx) + matrix( rnorm(ID*nlatvar,mean=0,sd=sqrt(errvar)), ID, nlatvar)  #kleine Fehlervarianz --> hohe Korrelation 
@@ -134,7 +155,7 @@ datagen <- function(model,times=1,ID=250,korr="random",schwellen=4,items=3,latva
         saved_vars[[h]] <- colVars(data_mtx); names(saved_vars)[[h]] <- paste0("var",h)
         saved_kappas[[h]] <- kappa; names(saved_kappas)[[h]] <- paste0("kappa",h)
         saved_covs[[h]] <- cov(data_mtx); names(saved_covs)[[h]] <- paste0("cov",h)
-        saved_cors[[h]] <- cor(data_mtx); names(saved_cors)[[h]] <- paste0("cor",h)
+        saved_betas[[h]] <- beta; names(saved_betas)[[h]] <- paste0("beta",h)
         saved_latvars[[h]] <- data_mtx
         saved_data[[h]] <- table; names(saved_data)[[h]] <- paste0("data",h)
         
@@ -144,11 +165,19 @@ datagen <- function(model,times=1,ID=250,korr="random",schwellen=4,items=3,latva
     } else {next}
   } 
   
-  fits <- list(saved_pvalues,saved_rmseas,saved_vars,saved_kappas,saved_covs,saved_cors,saved_latvars,saved_data)
-  names(fits) <- c("pvalues","rmseas","vars","kappas","covs","cors","latvars","data")
+  fits <- list(saved_pvalues,saved_rmseas,saved_vars,saved_kappas,saved_covs,saved_betas,saved_latvars,saved_data)
+  names(fits) <- c("pvalues","rmseas","vars","kappas","covs","betas","latvars","data")
   return(fits)
 }
 
 
 
-
+################################################################################
+################################# Sandbox ######################################
+################################################################################
+#model_lav = '
+#  Eta1 =~ simuvar1 + simuvar2 + simuvar3 
+#  Eta2 =~ simuvar4 + simuvar5 + simuvar6 
+#  Eta3 =~ simuvar7 + simuvar8 + simuvar9'
+#fits_random <- datagen(model = model_lav, mode = 'thresholds', schwellen = 3, ID=500, times=2, items=3, latvar = 3)
+#model = model_lav; mode = 'none'; schwellen = 3; ID=500; times=2; items=3; latvar = 3; korr="random"

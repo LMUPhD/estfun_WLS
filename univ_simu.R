@@ -59,10 +59,10 @@ datagen <- function(times=1,ID=250,schwellen=6,items=5,rmsea_cutoff=.05){
     
     
     ###### Numerical Variables
-    Y_num <- array(NA,c(ID,m)) 
-    for (i in 1:m) { #Items 
-      Y_num[,i] <- beta[i]*Psi - kappa_shift[i] + rnorm(ID, mean = 0 , sd = 0.5)
-    }
+    #Y_num <- array(NA,c(ID,m)) 
+    #for (i in 1:m) { #Items 
+    #  Y_num[,i] <- beta[i]*Psi - kappa_shift[i] + rnorm(ID, mean = 0 , sd = 0.5)
+    #}
     
     
     
@@ -105,11 +105,11 @@ datagen <- function(times=1,ID=250,schwellen=6,items=5,rmsea_cutoff=.05){
     
     #### Tabelle erzeugen & Deskriptive Statistik
     table_ord <- matrix(ncol = m,nrow = ID)
-    table_num <- matrix(ncol = m,nrow = ID)
+    #table_num <- matrix(ncol = m,nrow = ID)
     
     for (i in 1:m){
       table_ord[,i] <- Y_ord[,i]
-      table_num[,i] <- Y_num[,i]
+      #table_num[,i] <- Y_num[,i]
     }
     
     
@@ -118,8 +118,8 @@ datagen <- function(times=1,ID=250,schwellen=6,items=5,rmsea_cutoff=.05){
     
     output <- sapply(1:(m),function(y){paste0("simuvar",y)})
     table_ord <- as.data.frame(table_ord)
-    table_num <- as.data.frame(table_num)
-    colnames(table_ord) <- colnames(table_num)<- c(output)
+    #table_num <- as.data.frame(table_num)
+    colnames(table_ord) <-  c(output) #colnames(table_num)<-
     
     
     
@@ -129,7 +129,7 @@ datagen <- function(times=1,ID=250,schwellen=6,items=5,rmsea_cutoff=.05){
     
     ## Model schätzen
     fit_ord <- tryCatch({lavaan::cfa(model = model, data=table_ord, ordered = output, estimator="WLS", do.fit=T, std.lv=F, control=list(iter.max=1000))},warning = function(w){NA},error = function(e){NA})
-    fit_num <- tryCatch({lavaan::cfa(model = model, data=table_num, estimator="ML", meanstructure=T, do.fit=T, std.lv=F, control=list(iter.max=500))},warning = function(w){return(NA)},error = function(e){return(NA)})
+    #fit_num <- tryCatch({lavaan::cfa(model = model, data=table_num, estimator="ML", meanstructure=T, do.fit=T, std.lv=F, control=list(iter.max=500))},warning = function(w){return(NA)},error = function(e){return(NA)})
     
     
     ##Ergebnisse Zusammenfügen!
@@ -141,13 +141,13 @@ datagen <- function(times=1,ID=250,schwellen=6,items=5,rmsea_cutoff=.05){
 
         
         
-        saved_pvalues[[h]] <- c(fitMeasures(fit_ord)["pvalue"],fitMeasures(fit_num)["pvalue"]); names(saved_pvalues)[[h]] <- paste0("pvalue",h)
-        saved_rmseas[[h]] <- c(fitMeasures(fit_ord)["rmsea"],fitMeasures(fit_num)["rmsea"]); names(saved_rmseas)[[h]] <- paste0("rmsea",h)
+        saved_pvalues[[h]] <- fitMeasures(fit_ord)["pvalue"]; names(saved_pvalues)[[h]] <- paste0("pvalue",h)
+        saved_rmseas[[h]] <- fitMeasures(fit_ord)["rmsea"]; names(saved_rmseas)[[h]] <- paste0("rmsea",h)
         saved_vars[[h]] <- var; names(saved_vars)[[h]] <- paste0("var",h)
         saved_kappas[[h]] <- kappa; names(saved_kappas)[[h]] <- paste0("kappa",h)
         saved_betas[[h]] <- beta; names(saved_betas)[[h]] <- paste0("beta",h)
         saved_latvars[[h]] <- Psi; names(saved_latvars)[[h]] <- paste0("true_var",h)
-        saved_data[[h]] <- list(table_ord,table_num); names(saved_data)[[h]] <- paste0("data",h)
+        saved_data[[h]] <- table_ord; names(saved_data)[[h]] <- paste0("data",h)
         saved_model[[h]] <- model; names(saved_model)[[h]] <- paste0("model",h)
         
         
