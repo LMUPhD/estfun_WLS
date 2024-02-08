@@ -1,14 +1,6 @@
-library("psych")
-library("resample")
-library("mvtnorm")
-library("faux")
-library("pbv")
-#####
 
 library(doParallel)
 library(foreach)
-setwd("C:\\Users\\classe\\Desktop\\Diss\\Paper3\\estfun_WLS")
-
 estfun.MHRM <- function(modelobj){
   model.mhrm.values <- mirt::mirt(data=modelobj@Data[["data"]],model=model_mirt, itemtype='graded', pars = "values", method='MHRM') 
   ## We extract the estimated parameters:
@@ -179,8 +171,9 @@ getResultsTime <- function(g,.flucs){
 ################################################################################
 ################################################################################
 ################################################################################
-for(nn in c(2000)){
-  for(sc in c(6)) {
+for(nn in c(500,1000,2000)){
+  for(sc in c(1,2,4,6)) {
+    
     ### hyperparameters:
     ii=3;lvv=3
     ###
@@ -197,13 +190,13 @@ for(nn in c(2000)){
   Eta3 =~ simuvar7 + simuvar8 + simuvar9'
     
     iters = 1000
-    cl <- parallel::makeCluster(20) 
+    cl <- parallel::makeCluster(64) 
     doParallel::registerDoParallel(cl)
     
     
     result <- foreach(x=1:iters,.packages=c("lavaan","psych","resample"),  .errorhandling="pass") %dopar% {
       
-      simus = getDataSimulation(model=model_lav,mode='thresholds',items=ii,latvars=lvv,n=nn,schwellen=sc)
+      simus = getDataSimulation(model=model_lav,mode='betas',items=ii,latvars=lvv,n=nn,schwellen=sc)
       models <- getModelsSimulation(simus,model_mirt)
       flucs <- getFlucsSimulation(models,simus)
       res = sapply(1:2,function(g) {getResultsSimulation(g,.flucs=flucs)} )
@@ -267,7 +260,7 @@ for(nn in c(2000)){
     
     ######
     
-    save(result, resu, resu_t,ii,lvv,nn,sc, file=paste0("240203_",sc,"_",nn,"_result_multi_thresh.RData"))
+    save(result, resu, resu_t,ii,lvv,nn,sc, file=paste0("240131_",sc,"_",nn,"_result_multi_medfluc_simpleWLS.RData"))
     
     
   }

@@ -1,5 +1,13 @@
+library("psych")
+library("resample")
+library("mvtnorm")
+library("faux")
+library("pbv")
+#####
 
-setwd("C:/Users/classe/Desktop/Diss/Paper3/estfun_WLS")
+library(doParallel)
+library(foreach)
+setwd("C:\\Users\\classe\\Desktop\\Diss\\Paper3\\estfun_WLS")
 
 estfun.MHRM <- function(modelobj){
   model.mhrm.values <- mirt::mirt(data=modelobj@Data[["data"]],model=model_mirt, itemtype='graded', pars = "values", method='MHRM') 
@@ -24,18 +32,13 @@ estfun.MHRM <- function(modelobj){
 }
 
 
-source("estfun_WLS2.R")
+source("estfun_WLS.R")
 source("multi_simu.R")
 
 
 ################################################################################
 ######################### Ordinal Data ######################################### 
 ################################################################################
-
-
-
-
-
 
 getDataSimulation <- function(model,latvars,items,n,schwellen){
   
@@ -86,7 +89,6 @@ getDataSimulation <- function(model,latvars,items,n,schwellen){
 ############################### Models ######################################### 
 ################################################################################
 
-
 getModelsSimulation <- function(x_simus,model_mirt){
   
   models <- list()
@@ -94,10 +96,10 @@ getModelsSimulation <- function(x_simus,model_mirt){
   for(i in 1:2){
     ############ mirt
     fit_ord <- lavaan::cfa(x_simus[[3]], data = x_simus[[i]], ordered = TRUE, estimator = "WLS",std.lv=TRUE )
-
+    
     ############ mirt
     fit_mirt <- mirt::mirt(x_simus[[i]][,1:x_simus[[4]]], model=model_mirt, itemtype="graded",method="MHRM" )  
-
+    
     
     models[[i]] <- list(fit_mirt, fit_ord) 
     
@@ -107,19 +109,13 @@ getModelsSimulation <- function(x_simus,model_mirt){
   #[[1]][[2]]: nonfluc WLS 
   #[[2]][[1]]: fluc mirt 
   #[[2]][[2]]: fluc WLS
-
+  
 }
 
 
-
-
 ################################################################################
-########################## try strucchange #####################################
+########################## strucchange #####################################
 ################################################################################
-
-
-
-##################### Fluctuation test
 
 #x=1 --> nonfluc 
 #x=2 --> fluc
@@ -133,15 +129,36 @@ getFlucsSimulation <- function(models,simus){
     simu = simus[[y]]
     
     #mirt
-    flucs1[[1]] <- strucchange::gefp(models[[y]][[1]], fit=NULL, scores = estfun.MHRM, order.by = simu[,"rand1"]) #ordinal/categorical
-    flucs2[[1]] <- strucchange::gefp(models[[y]][[1]], fit=NULL, scores = estfun.MHRM, order.by = simu[,"rand2"]) #numeric
-    flucs3[[1]] <- strucchange::gefp(models[[y]][[1]], fit=NULL, scores = estfun.MHRM, order.by = simu[,"rand3"]) #nominal
+    start_time <- Sys.time()
+    fluc <- strucchange::gefp(models[[y]][[1]], fit=NULL, scores = estfun.MHRM, order.by = simu[,"rand1"]) #ordinal/categorical
+    time <- as.numeric( Sys.time() - start_time )
+    flucs1[[1]] <- list(fluc,time)
     
+    start_time <- Sys.time()
+    fluc <- strucchange::gefp(models[[y]][[1]], fit=NULL, scores = estfun.MHRM, order.by = simu[,"rand2"]) #numeric
+    time <- as.numeric( Sys.time() - start_time )
+    flucs2[[1]] <- list(fluc,time)
+    
+    start_time <- Sys.time()
+    fluc <- strucchange::gefp(models[[y]][[1]], fit=NULL, scores = estfun.MHRM, order.by = simu[,"rand3"]) #nominal
+    time <- as.numeric( Sys.time() - start_time )
+    flucs3[[1]] <- list(fluc,time)
     
     #lavaan
-    flucs1[[2]] <- strucchange::gefp(models[[y]][[2]], fit=NULL, scores = estfun.WLS, order.by = simu[,"rand1"]) #ordinal/categorical
-    flucs2[[2]] <- strucchange::gefp(models[[y]][[2]], fit=NULL, scores = estfun.WLS, order.by = simu[,"rand2"]) #numeric
-    flucs3[[2]] <- strucchange::gefp(models[[y]][[2]], fit=NULL, scores = estfun.WLS, order.by = simu[,"rand3"]) #nominal
+    start_time <- Sys.time()
+    fluc <- strucchange::gefp(models[[y]][[2]], fit=NULL, scores = estfun.WLS, order.by = simu[,"rand1"]) #ordinal/categorical
+    time <- as.numeric( Sys.time() - start_time )
+    flucs1[[2]] <- list(fluc,time)
+    
+    start_time <- Sys.time()
+    fluc <- strucchange::gefp(models[[y]][[2]], fit=NULL, scores = estfun.WLS, order.by = simu[,"rand2"]) #numeric
+    time <- as.numeric( Sys.time() - start_time )
+    flucs2[[2]] <- list(fluc,time)
+    
+    start_time <- Sys.time()
+    fluc <- strucchange::gefp(models[[y]][[2]], fit=NULL, scores = estfun.WLS, order.by = simu[,"rand3"]) #nominal
+    time <- as.numeric( Sys.time() - start_time )
+    flucs3[[2]] <- list(fluc,time)
     
     
     return(list(flucs1,flucs2,flucs3))
@@ -149,38 +166,47 @@ getFlucsSimulation <- function(models,simus){
   })
   
   return(flucs) 
-  #[[1]][[1]][[1]] nonfluc,ordinal,mirt
-  #[[1]][[1]][[2]] nonfluc,ordinal,WLS
-  #[[1]][[2]][[1]] nonfluc,metric,mirt
-  #[[1]][[2]][[2]] nonfluc,metric,WLS
-  #[[1]][[3]][[1]] nonfluc,nominal,mirt
-  #[[1]][[3]][[2]] nonfluc,nominal,WLS 
+  #[[1]][[1]][[1]][[1]] nonfluc,ordinal,mirt
+  #[[1]][[1]][[2]][[1]] nonfluc,ordinal,WLS
+  #[[1]][[2]][[1]][[1]] nonfluc,metric,mirt
+  #[[1]][[2]][[2]][[1]] nonfluc,metric,WLS
+  #[[1]][[3]][[1]][[1]] nonfluc,nominal,mirt
+  #[[1]][[3]][[2]][[1]] nonfluc,nominal,WLS 
   
-  #[[2]][[1]][[1]] fluc,ordinal,mirt
-  #[[2]][[1]][[2]] fluc,ordinal,WLS
-  #[[2]][[2]][[1]] fluc,metric,mirt
-  #[[2]][[2]][[2]] fluc,metric,WLS
-  #[[2]][[3]][[1]] fluc,nominal,mirt
-  #[[2]][[3]][[2]] fluc,nominal,WLS 
+  #[[2]][[1]][[1]][[1]] fluc,ordinal,mirt
+  #[[2]][[1]][[2]][[1]] fluc,ordinal,WLS
+  #[[2]][[2]][[1]][[1]] fluc,metric,mirt
+  #[[2]][[2]][[2]][[1]] fluc,metric,WLS
+  #[[2]][[3]][[1]][[1]] fluc,nominal,mirt
+  #[[2]][[3]][[2]][[1]] fluc,nominal,WLS 
 }
-
-
-
-
 
 ## Tests
 getResultsSimulation <- function(g,.flucs){
   x=unlist(g[2])
   z=unlist(g[1])
   
-  p_maxBB    <- strucchange::sctest(.flucs[[x]][[2]][[z]], functional = strucchange::maxBB)$p.value #dm
-  p_ordwmax  <- strucchange::sctest(.flucs[[x]][[1]][[z]], functional = strucchange::ordwmax(.flucs[[x]][[1]][[z]]))$p.value[1]  #wdmo 
-  p_catl2bb  <- strucchange::sctest(.flucs[[x]][[3]][[z]], functional = strucchange::catL2BB(.flucs[[x]][[3]][[z]]))$p.value  #LMuo
+  p_maxBB    <- strucchange::sctest(.flucs[[x]][[2]][[z]][[1]], functional = strucchange::maxBB)$p.value #dm
+  p_meanL2BB <- strucchange::sctest(.flucs[[x]][[2]][[z]][[1]], functional = strucchange::meanL2BB)$p.value #cvm 
+  p_sumlm    <- strucchange::sctest(.flucs[[x]][[2]][[z]][[1]], functional=  strucchange::supLM(from = 0.15, to = NULL))$p.value #suplm
+  p_ordwmax  <- strucchange::sctest(.flucs[[x]][[1]][[z]][[1]], functional = strucchange::ordwmax(.flucs[[x]][[1]][[z]][[1]]))$p.value[1]  #wdmo
+  p_ordL2BB  <- strucchange::sctest(.flucs[[x]][[1]][[z]][[1]], functional = strucchange::ordL2BB(.flucs[[x]][[1]][[z]][[1]]))$p.value[1]  #LMo
+  p_catl2bb  <- strucchange::sctest(.flucs[[x]][[3]][[z]][[1]], functional = strucchange::catL2BB(.flucs[[x]][[3]][[z]][[1]]))$p.value  #LMuo
   
-  c(p_maxBB,p_ordwmax,p_catl2bb)
+  c(p_maxBB,p_meanL2BB,p_sumlm,p_ordL2BB,p_ordwmax,p_catl2bb)
 }
 
-
+## Times fluc
+getResultsTime <- function(g,.flucs){
+  x=unlist(g[2])
+  z=unlist(g[1])
+  
+  ord_time    <- .flucs[[x]][[1]][[z]][[2]]
+  num_time    <- .flucs[[x]][[2]][[z]][[2]]
+  cat_time    <- .flucs[[x]][[3]][[z]][[2]]
+  
+  c(num_time,ord_time,cat_time)
+}
 
 
 
@@ -197,34 +223,108 @@ getResultsSimulation <- function(g,.flucs){
 
 
 ################################################################################
-
-model_mirt <- mirt::mirt.model('
-Eta1 = 1-3
-Eta2 = 4-6
-Eta3 = 7-9
-COV=Eta1*Eta2*Eta3') 
-model_lav = '
+################################################################################
+################################################################################
+for(h in c(2000)){
+  for(s in c(6)) {
+    
+    ### hyperparameters:
+    ii=3;lvv=3;nn=h;sc=s
+    ###
+    
+    
+    model_mirt <- mirt::mirt.model('
+  Eta1 = 1-3
+  Eta2 = 4-6
+  Eta3 = 7-9
+  COV=Eta1*Eta2*Eta3') 
+    model_lav = '
   Eta1 =~ simuvar1 + simuvar2 + simuvar3 
   Eta2 =~ simuvar4 + simuvar5 + simuvar6 
   Eta3 =~ simuvar7 + simuvar8 + simuvar9'
-iters = 10
-for(i in 1:iters){
-  ii=3;lvv=3;nn=1000;sc=4
-  simus = getDataSimulation(model=model_lav,items=ii,latvars=lvv,n=nn,schwellen=sc)
-  models <- getModelsSimulation(simus,model_mirt)
-  flucs <- getFlucsSimulation(models,simus)
-  grid = expand.grid(1:2,1:2)
-  res = apply(grid,1L,function(g) {getResultsSimulation(g,.flucs=flucs)} )
-  ### get computation times
-  ms = apply(grid,1L,function(g) {models[[g[2]]][[g[1]]]} )
-  tms = c(ms[[1]]@time[["TOTAL:"]],ms[[2]]@timing$total,ms[[3]]@time[["TOTAL:"]],ms[[4]]@timing$total)
-  res = rbind(res,tms)
-  ###
-  
-  colnames(res) <- c("nonfluc/mirt","nonfluc/WLS","fluc/mirt","fluc/WLS")
-  rownames(res) <- c("maxBB","ordmax","catL2BB","times")
-  print(res)
+    
+    iters = 1000
+    cl <- parallel::makeCluster(20)
+    doParallel::registerDoParallel(cl)
+    
+    
+    result <- foreach(x=1:iters,.packages=c("lavaan","psych","resample"),  .errorhandling="pass") %dopar% {
+      
+      simus = getDataSimulation(model=model_lav,items=ii,latvars=lvv,n=nn,schwellen=sc)
+      models <- getModelsSimulation(simus,model_mirt)
+      flucs <- getFlucsSimulation(models,simus)
+      grid = expand.grid(1:2,1:2)
+      res = apply(grid,1L,function(g) {getResultsSimulation(g,.flucs=flucs)} )
+      ###get computation times for flucs...
+      res_t = apply(grid,1L,function(g) {getResultsTime(g,.flucs=flucs)} )
+      ###...and for models
+      ms = apply(grid,1L,function(g) {models[[g[2]]][[g[1]]]} )
+      tms = c(ms[[1]]@time[["TOTAL:"]],ms[[2]]@timing$total,ms[[3]]@time[["TOTAL:"]],ms[[4]]@timing$total)
+      res_t = rbind(res_t,tms)
+      
+      
+      
+      colnames(res) <- colnames(res_t) <- c("nonfluc/mirt","nonfluc/WLS","fluc/mirt","fluc/WLS")
+      rownames(res) <- c("maxBB","meanL2BB","supLM","ordL2BB","ordwmax","catL2BB")
+      rownames(res_t) <- c("fluc_num","fluc_ord","fluc_cat","model")
+      return(list(res,res_t))
+      
+    }
+    
+    parallel::stopCluster(cl)
+    
+    
+    
+    ######
+    res = lapply(result,"[[",1)
+    res_t = lapply(result,"[[",2)
+    err = which(sapply(res,is.character))   #exclude errors
+    if(length(err)!=0) {
+      res = res[-err] 
+      res_t = res_t[-err]
+    }
+    
+    
+    iters = length(res)
+    res_arr <- array(as.numeric(unlist(res)), dim=c(6, 4, iters))
+    resu <- data.frame()
+    for(i in 1:6){
+      r1 = sum(  res_arr[i,1,] < .05 )/iters
+      r2 = sum(  res_arr[i,2,] < .05 )/iters
+      r3 = sum( res_arr[i,3,] > .05 )/iters
+      r4 = sum( res_arr[i,4,] > .05 )/iters
+      resu <- rbind(resu,c(r1,r2,r3,r4))
+    }
+    
+    
+    colnames(resu) <- c("nonfluc/mirt","nonfluc/WLS","fluc/mirt","fluc/WLS")
+    rownames(resu) <- c("maxBB","meanL2BB","supLM","ordL2BB","ordwmax","catL2BB")
+    
+    
+    
+    ######
+    res_t_arr <- array(as.numeric(unlist(res_t)), dim=c(4, 4, iters))
+    resu_t <- data.frame()
+    for(i in 1:4){
+      for(j in 1:4){
+        r = mean(  res_t_arr[i,j,] )
+        resu_t[i,j] <- r
+      }
+    }
+    
+    rownames(resu_t) <- c("fluc_num","fluc_ord","fluc_cat","model")
+    colnames(resu_t) <- c("nonfluc/mirt","nonfluc/WLS","fluc/mirt","fluc/WLS")
+    
+    ######
+    
+    save(result, resu, resu_t,ii,lvv,nn,sc, file=paste0("240207_",s,"_",h,"_result_multi_simpleWLS.RData"))
+    
+    
+  }
 }
+
+
+
 
 
 
