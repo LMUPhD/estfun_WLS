@@ -1,0 +1,6 @@
+How to use repository:
+
+- estfun_WLS.R contains the actual estfun_WLS function 
+- estfun_WLS.R reads support.R
+- support.R contains several functions, some written by yrosseel, some written by me
+- respository also contains the article muthen1887.pdf
