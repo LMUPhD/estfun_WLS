@@ -1,27 +1,54 @@
-#multi
+
+
+
 model = '
+  Eta3 =~ simuvar7 + simuvar8 + simuvar9
   Eta1 =~ simuvar1 + simuvar2 + simuvar3 
-  Eta2 =~ simuvar4 + simuvar5 + simuvar6 
-  Eta3 =~ simuvar7 + simuvar8 + simuvar9'
-fits_random <- datagen(model = model, schwellen = 6, ID=1000, times=1, items=3, latvar = 3) #multi
+  Eta2 =~ simuvar4 + simuvar5 + simuvar6' 
+fits_random <- datagen(model = model, schwellen = 4, ID=1000, times=1, items=3, latvar = 3) #multi
 simu=fits_random[["data"]][["data1"]]
+
+#mirt
+model_mirt <- mirt::mirt.model('
+  Eta1 = 1-3
+  Eta2 = 4-6
+  Eta3 = 7-9
+  COV=Eta1*Eta2*Eta3') 
+fit_mirt <- mirt::mirt(data=simu, model=model_mirt, itemtype="graded",method="MHRM" )  
+
+
+#lavaan
 fit_ord <- lavaan::cfa(model, data = simu, ordered = TRUE, estimator = "WLS",std.lv=TRUE )
 object=fit_ord
 summary(fit_ord)
 
-#univ
-fits_random <- datagen(schwellen = 4, ID=1000, times=1, items=5) #univ
-simu=fits_random[["data"]][["data1"]]
-fit_ord <- lavaan::cfa(fits_random[["model"]][[1]], data = simu, ordered = TRUE, estimator = "WLS",std.lv=TRUE )
-object=fit_ord
+
+################################################################################
+################################################################################
+simu$rand1 <- replicate(nrow(simu),sample(c(1,2,3,4,5),1,prob=c(0.1,0.2,0.4,0.2,0.1))) #ordinal
+simu$rand2 <- round(runif(nrow(simu),min=100,max=400),2)                               #metric
+simu$rand3 <- replicate(nrow(simu),sample(c(1,2,3,4),1,prob=c(0.15,0.35,0.35,0.15)))   #nominal
+#covariates
 
 
+#mirt
+fluc_ord <- strucchange::gefp(fit_mirt, fit=NULL, scores = estfun.MHRM, order.by = simu[,"rand1"]) #ordinal/categorical
+fluc_num <- strucchange::gefp(fit_mirt, fit=NULL, scores = estfun.MHRM, order.by = simu[,"rand2"]) #numeric
+fluc_cat <- strucchange::gefp(fit_mirt, fit=NULL, scores = estfun.MHRM, order.by = simu[,"rand3"]) #nominal
 
-################
-model=fits_random[["model"]][["model1"]]
+
+#lavaan
 fluc_ord <- strucchange::gefp(fit_ord, fit=NULL, scores = estfun.WLS, order.by = simu[,"rand1"]) #ordinal/categorical
 fluc_num <- strucchange::gefp(fit_ord, fit=NULL, scores = estfun.WLS, order.by = simu[,"rand2"]) #numeric
 fluc_cat <- strucchange::gefp(fit_ord, fit=NULL, scores = estfun.WLS, order.by = simu[,"rand3"]) #nominal
+
+
+
+
+
+
+
+#both
 p_maxBB    <- strucchange::sctest(fluc_num, functional = strucchange::maxBB)$p.value #dm
 p_meanL2BB <- strucchange::sctest(fluc_num, functional = strucchange::meanL2BB)$p.value #cvm 
 p_sumlm    <- strucchange::sctest(fluc_num, functional=  strucchange::supLM(from = 0.15, to = NULL))$p.value #suplm
