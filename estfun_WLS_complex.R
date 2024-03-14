@@ -16,7 +16,7 @@ estfun.WLS <- function(object){
   ntot <- sum(ntab)
   npar <- lav_object_inspect_npar(object)
   nvar <- ncol(lavsamplestats@cov[[1]])
-  lv = lavdata@ov[["nlev"]]
+  
   
   #moments <- lavaan::fitted(object)
   N1 <- 1
@@ -30,21 +30,33 @@ estfun.WLS <- function(object){
   ################################# WLS ##########################################
   ################################################################################
   
+  #polychoric corr
+  polychors = lavsamplestats@cov[[1]]
 
+  th = lavsamplestats@th[[1]]
+  th.pr = VGAM::probitlink( th*-1,inverse=T) 
+  
   #dummies
+  lv = lavdata@ov[["nlev"]]
   Xd = do.call(cbind, lapply(1:nvar, function(i) doDummySingleVar(X,lv,ntot,i)  )) #Problems with doDummySingleVar...
   
   
   ###e1
-  musd = colMeans(Xd)
-  e1 = t( apply(Xd, 1L, function(x) x-musd ) )
+  e1 = t( apply(Xd, 1L, function(x) x-th.pr ) ) 
+  
   
   ###e2 
-  mus = colMeans(X)
+  catvals = lapply(1:nvar, function(x)  as.numeric(names(table(X[,x]))) )
+  mus = unlist(lapply(1:nvar, function(x) get_mus(x, th, lv, nvar, catvals)   ))
   y_minus_mu = t( apply(X, 1L, function(x) x - mus ) ) 
-  s_vech = t(apply(y_minus_mu, 1L, function(i){    lavaan::lav_matrix_vech(tcrossprod(i) ,diagonal=FALSE) })) #s=c( (y1-mu1)(y2-mu2)....
-  sigma = colMeans(s_vech)
   
+  combs = rbind(  combn(1:nvar,2), lavaan::lav_matrix_vech(polychors,diagonal=FALSE) ) 
+  joint_exps = apply(combs, 2L, function(x) get_joint_exp(x, X, th, lv, nvar, catvals)  ) #E(y1y2)
+  sigma =  joint_exps - t(  lavaan::lav_matrix_vech(tcrossprod(mus) ,diagonal=FALSE) )  #E(y1y2)-mu1mu2
+  
+  s_vech = t(apply(y_minus_mu, 1L, function(i){    lavaan::lav_matrix_vech(tcrossprod(i) ,diagonal=FALSE) })) #s=c( (y1-mu1)(y2-mu2)....
+  
+
   
   e2 = t( apply(s_vech, 1L, function(x) x - sigma ) ) 
   
@@ -54,9 +66,11 @@ estfun.WLS <- function(object){
   e = cbind(e1,e2)
   
   #weigthing matrix
-  W = lavsamplestats@WLS.V[[1]] #WLS.V is already inverted W!
-  #W = inv.chol(matrix(diag(c(musd,sigma)),ncol=length(c(musd,sigma)))) #GEE weight matrix (see Muthen1997, eq 30)
-
+  W = lavsamplestats@WLS.V[[1]] 
+  #W = diag(lavsamplestats@WLS.VD[[1]] ) #SWLS?
+  #W = matrix(diag(c(th.pr,sigma)),ncol=length(c(th.pr,sigma))) #GEE weight matrix (see Muthen1997, eq 30)
+  
+  
   #Delta
   Delta <- computeDelta(lavmodel = lavmodel)[[1]] #should also work for WLS...
   

@@ -33,7 +33,7 @@ estfun.MHRM <- function(modelobj){
 
 
 source("estfun_WLS.R")
-source("multi_simu.R")
+source("application/multi_simu.R")
 
 
 ################################################################################

@@ -1,6 +1,16 @@
 
+#install latest lavaan package!
+#detach('package:lavaan', unload=TRUE)
+devtools::install_github("yrosseel/lavaan",force=TRUE, build_opts = c())
+library(lavaan)
+
+################################################################################
+setwd("C:\\Users\\classe\\Desktop\\Diss\\Paper3\\estfun_WLS")
+source("estfun_WLS.R") #simple
+source(".Archiv/estfun_WLS_complex.R") #complex
 
 
+################################################################################
 model = '
   Eta3 =~ simuvar7 + simuvar8 + simuvar9
   Eta1 =~ simuvar1 + simuvar2 + simuvar3 
@@ -14,14 +24,13 @@ model_mirt <- mirt::mirt.model('
   Eta2 = 4-6
   Eta3 = 7-9
   COV=Eta1*Eta2*Eta3') 
-fit_mirt <- mirt::mirt(data=simu, model=model_mirt, itemtype="graded",method="MHRM" )  
+fit_mirt <- mirt::mirt(data=simu[,1:9], model=model_mirt, itemtype="graded",method="MHRM" )  
 
 
 #lavaan
 fit_ord <- lavaan::cfa(model, data = simu, ordered = TRUE, estimator = "WLS",std.lv=TRUE )
-object=fit_ord
 summary(fit_ord)
-
+lavaan::estfun.lavaan(fit_ord)
 
 ################################################################################
 ################################################################################
