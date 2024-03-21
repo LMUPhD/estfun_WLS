@@ -3,6 +3,8 @@
 
 library(lavaan)
 
+
+
 getCols <- function(lv,nvar){
   maxcols = mincols = c()
   maxcol = mincol = 0
@@ -106,7 +108,7 @@ doDummySingleVar <- function(X,lv,ntot,num){
 
 
 
-
+################################################################################
 ################################ lavaan code
 lav_object_inspect_npar <- function(object, type = "free") {
   
@@ -763,4 +765,261 @@ lav_object_inspect_est <- function(object, unrotated = FALSE) {
   }
   
   OUT
+}
+
+lav_model_x2GLIST <- function(lavmodel = NULL, x = NULL,
+                              type = "free", setDelta = TRUE,
+                              m.el.idx = NULL, x.el.idx = NULL) {
+  if (.hasSlot(lavmodel, "correlation")) {
+    correlation <- lavmodel@correlation
+  } else {
+    correlation <- FALSE
+  }
+  
+  GLIST <- lavmodel@GLIST
+  for (mm in 1:length(GLIST)) {
+    # skip empty matrix
+    if (nrow(GLIST[[mm]]) == 0L) {
+      next
+    }
+    if (type == "free") {
+      M.EL.IDX <- lavmodel@m.free.idx[[mm]]
+      X.EL.IDX <- lavmodel@x.free.idx[[mm]]
+    } else if (type == "unco") {
+      M.EL.IDX <- lavmodel@m.free.idx[[mm]]
+      X.EL.IDX <- lavmodel@x.unco.idx[[mm]]
+    } else if (type == "full") {
+      if (lavmodel@isSymmetric[mm]) {
+        N <- ncol(GLIST[[mm]])
+        M.EL.IDX <- lav_matrix_vech_idx(N)
+      } else {
+        M.EL.IDX <- seq_len(length(GLIST[[mm]]))
+      }
+      X.EL.IDX <- seq_len(length(m.el.idx))
+      if (mm > 1) X.EL.IDX <- X.EL.IDX + sum(lavmodel@mmSize[1:(mm - 1)])
+    } else if (type == "custom") {
+      # nothing to do, m.el.idx and x.el.idx should be given
+      M.EL.IDX <- m.el.idx[[mm]]
+      X.EL.IDX <- x.el.idx[[mm]]
+    }
+    
+    # assign
+    GLIST[[mm]][M.EL.IDX] <- x[X.EL.IDX]
+    
+    # make symmetric (if full)
+    if (type == "full" && lavmodel@isSymmetric[mm]) {
+      T <- t(GLIST[[mm]])
+      GLIST[[mm]][upper.tri(GLIST[[mm]])] <- T[upper.tri(T)]
+    }
+  }
+  
+  #    # theta parameterization: delta must be reset!
+  #    if((lavmodel@categorical || correlation) && setDelta &&
+  #       lavmodel@parameterization == "theta") {
+  #        nmat <- lavmodel@nmat
+  #        for(g in 1:lavmodel@nblocks) {
+  #            # which mm belong to group g?
+  #            mm.in.group <- 1:nmat[g] + cumsum(c(0L,nmat))[g]
+  #            GLIST[mm.in.group] <-
+  #                setDeltaElements.LISREL(MLIST = GLIST[mm.in.group],
+  #                    num.idx = lavmodel@num.idx[[g]])
+  #        }
+  #    }
+  
+  # in 0.6-13: we always set theta/delta
+  if ((lavmodel@categorical || correlation) && setDelta) {
+    nmat <- lavmodel@nmat
+    if (lavmodel@representation == "LISREL") {
+      for (g in 1:lavmodel@nblocks) {
+        # which mm belong to group g?
+        mm.in.group <- 1:nmat[g] + cumsum(c(0L, nmat))[g]
+        
+        if (lavmodel@parameterization == "delta") {
+          GLIST[mm.in.group] <-
+            setResidualElements.LISREL(
+              MLIST = GLIST[mm.in.group],
+              num.idx = lavmodel@num.idx[[g]],
+              ov.y.dummy.ov.idx = lavmodel@ov.y.dummy.ov.idx[[g]],
+              ov.y.dummy.lv.idx = lavmodel@ov.y.dummy.lv.idx[[g]]
+            )
+        } else if (lavmodel@parameterization == "theta") {
+          GLIST[mm.in.group] <-
+            setDeltaElements.LISREL(
+              MLIST = GLIST[mm.in.group],
+              num.idx = lavmodel@num.idx[[g]]
+            )
+        }
+      } # blocks
+    } else {
+      cat("FIXME: deal with theta elements in the categorical case (RAM)")
+    }
+  }
+  
+  GLIST
+}
+
+computeSigmaHat <- function(lavmodel = NULL, GLIST = NULL, extra = FALSE,
+                            delta = TRUE, debug = FALSE) {
+  # state or final?
+  if (is.null(GLIST)) GLIST <- lavmodel@GLIST
+  
+  nmat <- lavmodel@nmat
+  nvar <- lavmodel@nvar
+  nblocks <- lavmodel@nblocks
+  representation <- lavmodel@representation
+  
+  # return a list
+  Sigma.hat <- vector("list", length = nblocks)
+  
+  for (g in 1:nblocks) {
+    # which mm belong to group g?
+    mm.in.group <- 1:nmat[g] + cumsum(c(0, nmat))[g]
+    MLIST <- GLIST[mm.in.group]
+    
+    if (representation == "LISREL") {
+      Sigma.hat[[g]] <- computeSigmaHat.LISREL(
+        MLIST = MLIST,
+        delta = delta
+      )
+    } else if (representation == "RAM") {
+      Sigma.hat[[g]] <- lav_ram_sigmahat(MLIST = MLIST, delta = delta)
+    } else {
+      stop("only LISREL and RAM representation has been implemented for now")
+    }
+    if (debug) print(Sigma.hat[[g]])
+    
+    if (extra) {
+      # check if matrix is positive definite
+      ev <- eigen(Sigma.hat[[g]], symmetric = TRUE, only.values = TRUE)$values
+      if (any(ev < sqrt(.Machine$double.eps)) || sum(ev) == 0) {
+        Sigma.hat.inv <- MASS::ginv(Sigma.hat[[g]])
+        Sigma.hat.log.det <- log(.Machine$double.eps)
+        attr(Sigma.hat[[g]], "po") <- FALSE
+        attr(Sigma.hat[[g]], "inv") <- Sigma.hat.inv
+        attr(Sigma.hat[[g]], "log.det") <- Sigma.hat.log.det
+      } else {
+        ## since we already do an 'eigen' decomposition, we should
+        ## 'reuse' that information, instead of doing a new cholesky?
+        # EV <- eigen(Sigma.hat[[g]], symmetric = TRUE)
+        # Sigma.hat.inv <- tcrossprod(EV$vectors / rep(EV$values,
+        #        each = length(EV$values)), EV$vectors)
+        # Sigma.hat.log.det <- sum(log(EV$values))
+        
+        ## --> No, chol() is much (x2) times faster
+        Sigma.hat.inv <- inv.chol(Sigma.hat[[g]], logdet = TRUE)
+        Sigma.hat.log.det <- attr(Sigma.hat.inv, "logdet")
+        
+        attr(Sigma.hat[[g]], "po") <- TRUE
+        attr(Sigma.hat[[g]], "inv") <- Sigma.hat.inv
+        attr(Sigma.hat[[g]], "log.det") <- Sigma.hat.log.det
+      }
+    }
+  } # nblocks
+  
+  Sigma.hat
+}
+
+
+setResidualElements.LISREL <- function(MLIST = NULL,
+                                       num.idx = NULL,
+                                       ov.y.dummy.ov.idx = NULL,
+                                       ov.y.dummy.lv.idx = NULL) {
+  # remove num.idx from ov.y.dummy.*
+  if (length(num.idx) > 0L && length(ov.y.dummy.ov.idx) > 0L) {
+    n.idx <- which(ov.y.dummy.ov.idx %in% num.idx)
+    if (length(n.idx) > 0L) {
+      ov.y.dummy.ov.idx <- ov.y.dummy.ov.idx[-n.idx]
+      ov.y.dummy.lv.idx <- ov.y.dummy.lv.idx[-n.idx]
+    }
+  }
+  
+  # force non-numeric theta elements to be zero
+  if (length(num.idx) > 0L) {
+    diag(MLIST$theta)[-num.idx] <- 0.0
+  } else {
+    diag(MLIST$theta) <- 0.0
+  }
+  if (length(ov.y.dummy.ov.idx) > 0L) {
+    MLIST$psi[cbind(ov.y.dummy.lv.idx, ov.y.dummy.lv.idx)] <- 0.0
+  }
+  
+  # special case: PSI=0, and lambda=I (eg ex3.12)
+  if (ncol(MLIST$psi) > 0L &&
+      sum(diag(MLIST$psi)) == 0.0 && all(diag(MLIST$lambda) == 1)) {
+    ### FIXME: more elegant/general solution??
+    diag(MLIST$psi) <- 1
+    Sigma.hat <- computeSigmaHat.LISREL(MLIST = MLIST, delta = FALSE)
+    diag.Sigma <- diag(Sigma.hat) - 1.0
+  } else if (ncol(MLIST$psi) == 0L) {
+    diag.Sigma <- rep(0, ncol(MLIST$theta))
+  } else {
+    Sigma.hat <- computeSigmaHat.LISREL(MLIST = MLIST, delta = FALSE)
+    diag.Sigma <- diag(Sigma.hat)
+  }
+  
+  if (is.null(MLIST$delta)) {
+    delta <- rep(1, length(diag.Sigma))
+  } else {
+    delta <- MLIST$delta
+  }
+  # theta = DELTA^(-2) - diag( LAMBDA (I-B)^-1 PSI (I-B)^-T t(LAMBDA) )
+  RESIDUAL <- as.vector(1 / (delta * delta) - diag.Sigma)
+  if (length(num.idx) > 0L) {
+    diag(MLIST$theta)[-num.idx] <- RESIDUAL[-num.idx]
+  } else {
+    diag(MLIST$theta) <- RESIDUAL
+  }
+  
+  # move ov.y.dummy 'RESIDUAL' elements from THETA to PSI
+  if (length(ov.y.dummy.ov.idx) > 0L) {
+    MLIST$psi[cbind(ov.y.dummy.lv.idx, ov.y.dummy.lv.idx)] <-
+      MLIST$theta[cbind(ov.y.dummy.ov.idx, ov.y.dummy.ov.idx)]
+    MLIST$theta[cbind(ov.y.dummy.ov.idx, ov.y.dummy.ov.idx)] <- 0.0
+  }
+  
+  MLIST
+}
+
+
+computeSigmaHat.LISREL <- function(MLIST = NULL,
+                                   delta = TRUE) {
+  LAMBDA <- MLIST$lambda
+  nvar <- nrow(LAMBDA)
+  PSI <- MLIST$psi
+  THETA <- MLIST$theta
+  BETA <- MLIST$beta
+  
+  # beta?
+  if (is.null(BETA)) {
+    LAMBDA..IB.inv <- LAMBDA
+  } else {
+    IB.inv <- .internal_get_IB.inv(MLIST = MLIST)
+    LAMBDA..IB.inv <- LAMBDA %*% IB.inv
+  }
+  
+  # compute V(Y*|x_i)
+  VYx <- tcrossprod(LAMBDA..IB.inv %*% PSI, LAMBDA..IB.inv) + THETA
+  
+  # if delta, scale
+  if (delta && !is.null(MLIST$delta)) {
+    DELTA <- diag(MLIST$delta[, 1L], nrow = nvar, ncol = nvar)
+    VYx <- DELTA %*% VYx %*% DELTA
+  }
+  
+  VYx
+}
+
+# 6) VYetax
+# V(Y | eta_i, x_i) = THETA
+computeVYetax.LISREL <- function(MLIST = NULL, delta = TRUE) {
+  VYetax <- MLIST$theta
+  nvar <- nrow(MLIST$theta)
+  
+  # if delta, scale
+  if (delta && !is.null(MLIST$delta)) {
+    DELTA <- diag(MLIST$delta[, 1L], nrow = nvar, ncol = nvar)
+    VYetax <- DELTA %*% VYetax %*% DELTA
+  }
+  
+  VYetax
 }

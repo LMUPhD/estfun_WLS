@@ -4,7 +4,20 @@ source("support.R")
 
 
 estfun.WLS <- function(object){
-  
+ 
+  compute.moments <- function(params) {
+    GLIST <- lav_model_x2GLIST(lavmodel = lavmodel, x=params, type="free")
+    Sigma.hat <- computeSigmaHat(lavmodel = lavmodel, GLIST = GLIST)
+    polychors = Sigma.hat[[1]]
+    th = as.vector(GLIST[["tau"]])
+    th.pr = VGAM::probitlink( th*-1,inverse=T) 
+    mus = unlist(lapply(1:nvar, function(x) get_mus(x, th, lv, nvar, catvals)   ))
+    combs = rbind(  combn(1:nvar,2), lavaan::lav_matrix_vech(polychors,diagonal=FALSE) ) 
+    joint_exps = apply(combs, 2L, function(x) get_joint_exp(x, X, th, lv, nvar, catvals)  ) #E(y1y2)
+    sigma =  joint_exps - t(  lavaan::lav_matrix_vech(tcrossprod(mus) ,diagonal=FALSE) )  #E(y1y2)-mu1mu2
+    return(c(th,sigma))
+  }
+   
   # shortcuts
   lavdata        <- object@Data
   lavmodel       <- object@Model
@@ -31,8 +44,10 @@ estfun.WLS <- function(object){
   ################################################################################
   
   #polychoric corr
+  #polychors = object@Fit@Sigma.hat[[1]]
   polychors = lavsamplestats@cov[[1]]
 
+  #th = object@Fit@TH[[1]]
   th = lavsamplestats@th[[1]]
   th.pr = VGAM::probitlink( th*-1,inverse=T) 
   
@@ -66,16 +81,19 @@ estfun.WLS <- function(object){
   e = cbind(e1,e2)
   
   #weigthing matrix
-  W = lavsamplestats@WLS.V[[1]] 
-  #W = diag(lavsamplestats@WLS.VD[[1]] ) #SWLS?
-  #W = matrix(diag(c(th.pr,sigma)),ncol=length(c(th.pr,sigma))) #GEE weight matrix (see Muthen1997, eq 30)
-  
+  #tetrachorics = psych::tetrachoric(Xd)$rho #--> compute sigmas for all inicators... does that make sense?
+  diag1 = th.pr*(1-th.pr)
+  diag2 = colMeans(s_vech^2) - sigma^2
+  W = matrix(diag(c(diag1,diag2)),ncol=length(c(diag1,diag2)))
+  W = inv.chol(W)
+
   
   #Delta
-  Delta <- computeDelta(lavmodel = lavmodel)[[1]] #should also work for WLS...
+  params <- lav_object_inspect_coef(object,type = "free", add.labels = F)
+  Delta <- numDeriv::jacobian(func=compute.moments, x = params)
   
   ### combine matrices
-  Score.mat = t( t(Delta) %*% W %*% t(e)  )  #works without mu*...
+  Score.mat = t( t(Delta) %*% W %*% t(e)  ) 
   
   
   
