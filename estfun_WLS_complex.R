@@ -44,11 +44,11 @@ estfun.WLS <- function(object){
   ################################################################################
   
   #polychoric corr
-  #polychors = object@Fit@Sigma.hat[[1]]
-  polychors = lavsamplestats@cov[[1]]
+  polychors = object@Fit@Sigma.hat[[1]]
+  #polychors = lavsamplestats@cov[[1]]
 
-  #th = object@Fit@TH[[1]]
-  th = lavsamplestats@th[[1]]
+  th = object@Fit@TH[[1]]
+  #th = lavsamplestats@th[[1]]
   th.pr = VGAM::probitlink( th*-1,inverse=T) 
   
   #dummies
