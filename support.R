@@ -25,13 +25,13 @@ get_mus <- function(var, th, lv, nvar,  catvals){
   p.item = th[cols] 
   catprobs.item = sapply(1:lv[var], function(x){
     if(x==1) {
-      prob_cat = VGAM::probitlink(p.item[1], inverse=T)
+      prob_cat = pnorm(p.item[1])
     }
     else if(x==lv[var]) {
-      prob_cat = VGAM::probitlink(tail(p.item, n=1)*-1, inverse=T)
+      prob_cat = pnorm(tail(p.item, n=1)*-1)
     } else{ 
-      prob_cat = VGAM::probitlink(p.item[x], inverse = T) - 
-        VGAM::probitlink(p.item[x-1], inverse = T)   
+      prob_cat = pnorm(p.item[x]) - 
+        pnorm(p.item[x-1])   
     }
     return(prob_cat)
   }) 
@@ -50,8 +50,8 @@ get_mus <- function(var, th, lv, nvar,  catvals){
 pbivnorm_wls <- function(x,y,rho){
   if(x==Inf & y==Inf){return(1)}
   else if(x==-Inf | y==-Inf){return(0)}
-  else if(x==Inf){return(   VGAM::probitlink(y, inverse=T)    )}
-  else if(y==Inf){return(   VGAM::probitlink(x, inverse=T)    )}
+  else if(x==Inf){return(   pnorm(y)    )}
+  else if(y==Inf){return(   pnorm(x)    )}
   else {return(  pbv::pbvnorm(x = x, y = y, rho = rho)   )} 
 }
 

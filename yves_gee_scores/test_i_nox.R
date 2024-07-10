@@ -1,6 +1,6 @@
  library(lavaan)
  library(pbivnorm)
-Data <- read.csv("test_data.csv")
+Data <- read.csv("yves_gee_scores/test_data.csv")
 
 model <- '
     f1 =~ u1 + u2 + u3
