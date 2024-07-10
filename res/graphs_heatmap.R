@@ -75,7 +75,7 @@ grid.newpage()
 pushViewport(viewport(layout = grid.layout(nr = 1, nc = 3,widths=c(1,1,0.2))))
 
 #annotations
-ha = HeatmapAnnotation(foo = anno_block(labels="MML",gp = gpar(fill = "lightgrey")))
+ha = HeatmapAnnotation(foo = anno_block(labels="FI estimation",gp = gpar(fill = "lightgrey")))
 hl_maxbb = rowAnnotation(foo = anno_block(labels="DM",gp = gpar(fill = "lightgrey")))
 hl_meanL2BB = rowAnnotation(foo = anno_block(labels="CvM",gp = gpar(fill = "lightgrey")))
 hl_supLM = rowAnnotation(foo = anno_block(labels="maxLM",gp = gpar(fill = "lightgrey")))
@@ -95,7 +95,7 @@ draw(h11%v%h12%v%h13%v%h14%v%h15%v%h16, newpage = FALSE)
 upViewport()
 
 #second column heatmaps
-ha = HeatmapAnnotation(foo = anno_block(labels="WLS",gp = gpar(fill = "lightgrey")))
+ha = HeatmapAnnotation(foo = anno_block(labels="Ordinal Factor Analysis",gp = gpar(fill = "lightgrey")))
 h21 = Heatmap(mat21, border=T, col = col_fun, show_heatmap_legend = FALSE,cluster_rows = FALSE,show_column_dend = FALSE,rect_gp = gpar(col = "white", lwd = 2),top_annotation=ha,cell_fun = function(j, i, x, y, width, height, fill) { grid.text(round(mat21[i, j],2), x, y, gp = gpar(fontsize = 10))})
 h22 = Heatmap(mat22, border=T, col = col_fun, show_heatmap_legend = FALSE,cluster_rows = FALSE,show_column_dend = FALSE,rect_gp = gpar(col = "white", lwd = 2)                  ,cell_fun = function(j, i, x, y, width, height, fill) { grid.text(round(mat22[i, j],2), x, y, gp = gpar(fontsize = 10))})
 h23 = Heatmap(mat23, border=T, col = col_fun, show_heatmap_legend = FALSE,cluster_rows = FALSE,show_column_dend = FALSE,rect_gp = gpar(col = "white", lwd = 2)                  ,cell_fun = function(j, i, x, y, width, height, fill) { grid.text(round(mat23[i, j],2), x, y, gp = gpar(fontsize = 10))})

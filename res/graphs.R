@@ -78,7 +78,7 @@ for(i in 1:length(g)){
 pl_arr <- ggarrange(plot1,plot2,plot3,plot4,plot5,plot6,plot7,plot8,plot9,plot10,plot11,plot12, ncol = 2, nrow = 6,common.legend=T)
 annotate_figure(pl_arr, 
                 left = text_grob(c("LMuo                    WDMo                maxLMo                 maxLM                    CvM                    DM "), rot = 90, face = "bold"),
-                bottom = text_grob(c("      MML                                                                                     WLS"),face="bold"),
+                bottom = text_grob(c("       FI estimation                                                               Ordinal Factor Analysis"),face="bold"),
                 fig.lab = "Multidimensional Model", fig.lab.face = "bold", fig.lab.size = 20)
 
 
@@ -160,7 +160,7 @@ for(i in 1:length(g)){
 pl_arr <- ggarrange(plot1,plot2,plot3,plot4,plot5,plot6,plot7,plot8,plot9,plot10,plot11,plot12, ncol = 2, nrow = 6,common.legend=T)
 annotate_figure(pl_arr, 
                 left = text_grob(c("LMuo                    WDMo                maxLMo                 maxLM                    CvM                    DM "), rot = 90, face = "bold"),
-                bottom = text_grob(c("      MML                                                                                      WLS"),face="bold"),
+                bottom = text_grob(c("       FI estimation                                                               Ordinal Factor Analysis"),face="bold"),
                 fig.lab = "Unidimensional Model", fig.lab.face = "bold", fig.lab.size = 20)
 
 
