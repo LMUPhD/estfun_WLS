@@ -52,6 +52,8 @@ for(n in 1:3){
 
 
 ############################### Plot ########################################
+#jpeg(filename="multidim_plot.jpg", width=11000, height=10500, res=1200)
+jpeg(filename="multidim_plot.jpg", width=5500, height=5250, res=600)
 
 g = c("tab_mirt_maxBB","tab_WLS_maxBB","tab_mirt_meanL2BB","tab_WLS_meanL2BB","tab_mirt_supLM","tab_WLS_supLM","tab_mirt_ordL2BB","tab_WLS_ordL2BB","tab_mirt_ordmax","tab_WLS_ordmax","tab_mirt_catL2BB","tab_WLS_catL2BB")
 for(i in 1:length(g)){
@@ -75,12 +77,12 @@ for(i in 1:length(g)){
 }
 pl_arr <- ggarrange(plot1,plot2,plot3,plot4,plot5,plot6,plot7,plot8,plot9,plot10,plot11,plot12, ncol = 2, nrow = 6,common.legend=T)
 annotate_figure(pl_arr, 
-                left = text_grob(c("LMuo                    WDMo              maxLMo                 maxLM                CvM                     DM "), rot = 90, face = "bold"),
-                bottom = text_grob(c("      mirt                                                                            WLS"),face="bold"),
+                left = text_grob(c("LMuo                    WDMo                maxLMo                 maxLM                    CvM                    DM "), rot = 90, face = "bold"),
+                bottom = text_grob(c("      MML                                                                                     WLS"),face="bold"),
                 fig.lab = "Multidimensional Model", fig.lab.face = "bold", fig.lab.size = 20)
 
 
-
+dev.off()
 
 
 
@@ -133,6 +135,9 @@ for(n in 1:3){
 
 ############################### Plot ########################################
 
+#jpeg(filename="unidim_plot.jpg", width=11000, height=10500, res=1200)
+jpeg(filename="unidim_plot.jpg", width=5500, height=5250, res=600)
+
 g = c("tab_mirt_maxBB","tab_WLS_maxBB","tab_mirt_meanL2BB","tab_WLS_meanL2BB","tab_mirt_supLM","tab_WLS_supLM","tab_mirt_ordL2BB","tab_WLS_ordL2BB","tab_mirt_ordmax","tab_WLS_ordmax","tab_mirt_catL2BB","tab_WLS_catL2BB")
 for(i in 1:length(g)){
   tabb <- 1-get(g[i])
@@ -143,7 +148,8 @@ for(i in 1:length(g)){
   if(g[i] %in% c("tab_mirt_meanL2BB","tab_WLS_meanL2BB")){
     tab[which(tab$Var1 %in% c("k=6")),"value"] = NA
   }
-
+  tab = tab[order(tab$Var2),]
+  
   
   
   pl <- ggplot(tab, aes(x = Var2, y = value, group = Var1)) +  geom_point(aes(color = Var1),size=2) +
@@ -153,12 +159,12 @@ for(i in 1:length(g)){
 }
 pl_arr <- ggarrange(plot1,plot2,plot3,plot4,plot5,plot6,plot7,plot8,plot9,plot10,plot11,plot12, ncol = 2, nrow = 6,common.legend=T)
 annotate_figure(pl_arr, 
-                left = text_grob(c("LMuo                    WDMo              maxLMo                 maxLM                CvM                     DM "), rot = 90, face = "bold"),
-                bottom = text_grob(c("      mirt                                                                            WLS"),face="bold"),
+                left = text_grob(c("LMuo                    WDMo                maxLMo                 maxLM                    CvM                    DM "), rot = 90, face = "bold"),
+                bottom = text_grob(c("      MML                                                                                      WLS"),face="bold"),
                 fig.lab = "Unidimensional Model", fig.lab.face = "bold", fig.lab.size = 20)
 
 
-
+dev.off()
 
 
 

@@ -3,8 +3,8 @@ library(mirt)
 library(strucchange)
 library(lavaan)
 
-setwd("C:\\Users\\classe\\Desktop\\Diss\\Paper3\\estfun_WLS")
-source("multi_simu.R")
+setwd("C:/Users/classe/Desktop/Diss/Paper3/estfun_WLS")
+source("application/multi_simu.R")
 source("estfun_WLS.R")
 
 #mob not possible with WLS because no log-likelihood is computed!

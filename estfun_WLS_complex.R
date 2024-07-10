@@ -91,6 +91,8 @@ estfun.WLS <- function(object){
   #Delta
   params <- lav_object_inspect_coef(object,type = "free", add.labels = F)
   Delta <- numDeriv::jacobian(func=compute.moments, x = params)
+  #Delta <- computeDelta(lavmodel = lavmodel)[[1]] #should also work for WLS...
+  
   
   ### combine matrices
   Score.mat = t( t(Delta) %*% W %*% t(e)  ) 

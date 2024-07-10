@@ -65,8 +65,9 @@ mat26 = tab_WLS_catL2BB
 col_fun = colorRamp2(c(0, 0.05, 0.2), c("yellow", "white", "darkred"))
 
 
-#save as pdf
-pdf(file="multivariate_heatmap.pdf",width=10,height=10)
+#save as jpg
+#jpeg(filename="multidim_heatmap.jpg", width=11000, height=13000, res=1200)
+jpeg(filename="multidim_heatmap.jpg", width=5500, height=6500, res=600)
 
 
 #draw grid
@@ -74,7 +75,7 @@ grid.newpage()
 pushViewport(viewport(layout = grid.layout(nr = 1, nc = 3,widths=c(1,1,0.2))))
 
 #annotations
-ha = HeatmapAnnotation(foo = anno_block(labels="mirt",gp = gpar(fill = "lightgrey")))
+ha = HeatmapAnnotation(foo = anno_block(labels="MML",gp = gpar(fill = "lightgrey")))
 hl_maxbb = rowAnnotation(foo = anno_block(labels="DM",gp = gpar(fill = "lightgrey")))
 hl_meanL2BB = rowAnnotation(foo = anno_block(labels="CvM",gp = gpar(fill = "lightgrey")))
 hl_supLM = rowAnnotation(foo = anno_block(labels="maxLM",gp = gpar(fill = "lightgrey")))
