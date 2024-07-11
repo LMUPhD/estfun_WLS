@@ -9,12 +9,13 @@ estfun.WLS <- function(object){
     GLIST <- lav_model_x2GLIST(lavmodel = lavmodel, x=params, type="free")
     Sigma.hat <- computeSigmaHat(lavmodel = lavmodel, GLIST = GLIST)
     polychors = Sigma.hat[[1]]
-    th = as.vector(GLIST[["tau"]]) 
+    th = as.vector(GLIST[["tau"]])
+    th.pr = pnorm(th*-1)
     mus = unlist(lapply(1:nvar, function(x) get_mus(x, th, lv, nvar, catvals)   ))
     combs = rbind(  combn(1:nvar,2), lavaan::lav_matrix_vech(polychors,diagonal=FALSE) )           
     joint_exps = apply(combs, 2L, function(x) get_joint_exp(x, X, th, lv, nvar, catvals)  ) #E(y1y2) 
     sigma =  joint_exps - t(  lavaan::lav_matrix_vech(tcrossprod(mus) ,diagonal=FALSE) )  #E(y1y2)-mu1mu2
-    return(c(th,sigma))
+    return(c(th.pr,sigma))
   }
    
   # shortcuts
@@ -31,7 +32,6 @@ estfun.WLS <- function(object){
   
   
   #moments <- lavaan::fitted(object)
-  N1 <- 1
   X <- lavdata@X[[1]]
   
   Score.mat <- matrix(NA, ntot, npar) #empty matrix
@@ -46,7 +46,7 @@ estfun.WLS <- function(object){
   polychors = object@Fit@Sigma.hat[[1]] 
 
   th = object@Fit@TH[[1]]
-  th.pr = pnorm( th*-1 + diag(polychors))                                       #add the diagonal of the model implied matrix!                   
+  th.pr = pnorm( th*-1)                                       #add the diagonal of the model implied matrix!                   
   
   #dummies
   lv = lavdata@ov[["nlev"]]
@@ -54,8 +54,8 @@ estfun.WLS <- function(object){
   
   
   ###e1
-  e1 = qnorm(abs(t( apply(Xd, 1L, function(x) x-th.pr) )))                     #yves suggestion to compute e1 is implemented
-  
+  e1 = t( apply(Xd, 1L, function(x) x-th.pr) )                     
+
   
   ###e2 
   catvals = lapply(1:nvar, function(x)  as.numeric(names(table(X[,x]))) )
@@ -78,17 +78,16 @@ estfun.WLS <- function(object){
   e = cbind(e1,e2)
   
   ###weigthing matrix
-  tetrachorics = psych::tetrachoric(Xd)$rho #--> compute sigmas for all inicators...
+  mat1 = matrix(0, ncol=length(th),nrow=length(th))
+  mat1[lower.tri(mat1)] = sigma 
+  mat1[upper.tri(mat1)] <- t(mat1)[upper.tri(t(mat1))] # 
+  diag(mat1) = pnorm(th*-1)*(1-pnorm(th*-1))        #mus for indicators in diagonal                                           
 
-  mat1 = polychors  #tetrachorics                                               #for binary data: model implied covariance matrix works best! Not quite sure why.
-  mat1 = cbind(mat1,matrix(0,ncol=length(sigma), nrow=length(th)))
-  
   diag2 = colMeans(s_vech^2) - sigma^2
   mat2 = matrix(diag(c(diag2)),ncol=length(diag2) )
-  mat2 = cbind(matrix(0,ncol=length(th), nrow=length(sigma)),mat2)
-  
-  W = rbind(mat1,mat2)
-  W = inv.chol(W)
+
+  W = lav_matrix_bdiag(mat1,mat2)
+  W.inv = solve(W)
 
   
   #Delta
@@ -97,7 +96,7 @@ estfun.WLS <- function(object){
 
   
   ### combine matrices
-  Score.mat = t( t(Delta) %*% W %*% t(e)  ) 
+  Score.mat = t( t(Delta) %*% W.inv %*% t(e)  ) 
   
   
   
