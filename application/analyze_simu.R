@@ -7,7 +7,7 @@ library(doParallel)
 library(foreach)
 setwd("C:\\Users\\classe\\Desktop\\Diss\\Paper3\\estfun_WLS")
 source("estfun_WLS.R")
-source("univ_simu.R")
+source("application\\univ_simu.R")
 
 ################################################################################
 ######################### Ordinal Data ######################################### 
