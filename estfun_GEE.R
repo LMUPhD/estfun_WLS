@@ -3,7 +3,7 @@ setwd("C:/Users/classe/Desktop/Diss/Paper3/estfun_WLS")
 source("support.R")
 
 
-estfun.WLS <- function(object){
+estfun.GEE <- function(object){
  
   compute.moments <- function(params, lavmodel = NULL) {
     GLIST <- lav_model_x2GLIST(lavmodel = lavmodel, x=params, type="free")
