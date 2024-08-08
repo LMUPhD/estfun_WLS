@@ -1,4 +1,3 @@
-setwd("C:\\Users\\classe\\Desktop\\Diss\\Paper3\\estfun_WLS")
 source("application\\univ_simu.R") #simulate data (univariate model)
 
 
