@@ -5,7 +5,8 @@ source("application\\univ_simu.R") #simulate data (univariate model)
 ################################################################################
 ########################## GEE estimation non-binary ###########################
 ################################################################################
-fits_random <- datagen(schwellen = 3, ID=1000, times=1, items=3) # categories
+fits_random <- datagen(schwellen = 1, ID=400, times=1, items=5) # categories
+real_params = c(fits_random$betas$beta1[-1],as.vector(fits_random$kappas$kappa1),fits_random$vars$var1)
 Data = fits_random[["data"]][["data1"]]
 #Data = Data-1
 model = fits_random[["model"]][[1]]
@@ -170,13 +171,6 @@ for(iter in seq_len(max_iter)) {
 
 
 
-#### test GEE scores
-fit.wls <- lavaan::cfa(model, data = Data, ordered = TRUE, estimator = "WLS", std.lv=F )
-coef(fit.wls) - new.x 
-
-fit.dwls <- lavaan::cfa(model, data = Data, ordered = TRUE, estimator = "DWLS", std.lv=F )
-coef(fit.dwls) - new.x #Binary: DWLS estimates almost identical parameters
-
 
 
 
@@ -186,22 +180,22 @@ coef(fit.dwls) - new.x #Binary: DWLS estimates almost identical parameters
 ################################################################################
 source("estfun_GEE.R")
 
+#### test GEE scores
+fit.wls <- lavaan::cfa(model, data = Data, ordered = TRUE, estimator = "WLS", std.lv=F )
+coef(fit.wls) - new.x 
+
+#fit.dwls <- lavaan::cfa(model, data = Data, ordered = TRUE, estimator = "DWLS", std.lv=F )
+#coef(fit.dwls) - new.x #Binary: DWLS estimates almost identical parameters
+
+
 
 SC1 = SCORES; colSums(SC1)
-SC2 = estfun.GEE(fit.wls); colSums(SC2) #doesn't sum up to one!
+#SC2 = estfun.GEE(fit.wls); colSums(SC2) #doesn't sum up to one!
 SC3 = lavaan::lavScores(fit.wls); colSums(SC3)
 
-round(diag(cor(SC1, SC2)), 5) #near-perfect correlation
-round(diag(cor(SC2, SC3)), 5)  
+#round(diag(cor(SC1, SC2)), 5) #near-perfect correlation
+#round(diag(cor(SC2, SC3)), 5)  
 round(diag(cor(SC1, SC3)), 5)   
-
-
-
-
-
-
-
-
 
 
 

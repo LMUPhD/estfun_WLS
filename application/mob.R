@@ -111,18 +111,22 @@ mirt_fit <- function(model) {
   }
 }
 
-lav_fit <- function(model) {
+lav_fit <- function(model) { #split points finden mit fmin!!
   
   function(y, x = NULL, start = NULL, weights = NULL, offset = NULL, ..., estfun = FALSE, object = FALSE) {
     
-    fit_ord <- lavaan::cfa(model = model, data=y, std.lv=F, ordered=T, estimator = "WLS", control=list(iter.max=100)) 
-    fit_num <- lavaan::cfa(model = model, data=y, std.lv=F, estimator = "ML", control=list(iter.max=100)) 
-    
+    fit_ord <- lavaan::cfa(model = model, data=y, std.lv=T, ordered=T, estimator = "WLS", control=list(iter.max=1000))
+    fmin_model = try(lavaan::fitMeasures(fit_ord)["fmin"])
+    if(class(fmin_model)=='try-error'){
+      fnum = lavaan::cfa(model = model, data=y, std.lv=T,estimator = "ML")
+      fmin_model = lavaan::fitMeasures(fnum)['fmin']
+    }
+
     print("iteration")
     
     list(
       estfun = estfun.WLS(fit_ord), #Schritt 1: Variable selection
-      objfun = -as.numeric(fit_num@loglik$loglik), #Schritt 2: Split point selection
+      objfun = fmin_model, #Schritt 2: Split point selection
       coefficients = stats4::coef(fit_ord),
       object = if(object) fit_ord else NULL #lavaan Objekt wird ausgegeben
     )
@@ -138,8 +142,8 @@ model_lav = '
   Eta1 =~ simuvar1 + simuvar2 + simuvar3 
   Eta2 =~ simuvar4 + simuvar5 + simuvar6 
   Eta3 =~ simuvar7 + simuvar8 + simuvar9'
-fits_random <- datagen(model = model_lav, mode='all', schwellen = 1, ID=500, times=4, items=3, latvar = 3)
-simu = create_dataset(fits_random)
+fits_random <- datagen(model = model_lav, mode='all', schwellen = 5, ID=500, times=4, items=3, latvar = 3)
+simu = create_dataset(fits_random) #numerische Variable zu kategorischer umwandeln...
 
 
 
@@ -150,18 +154,6 @@ simu = create_dataset(fits_random)
 ##############################     MOB     ##################################
 #############################################################################
 
-#MIRT
-start_time <- Sys.time()
-mob_mirt <- mob(formula=" simuvar1 + simuvar2 + simuvar3 + simuvar4 + simuvar5 + simuvar6 + simuvar7 + simuvar8 + simuvar9 ~ cat1 + num1 + ord1 + rand1 + rand2 + rand3 + rand4 + rand5",
-                data = simu,
-                fit = mirt_fit(model_mirt),
-                control = mob_control(ytype = "data.frame",bonferroni = T, maxdepth = Inf,minsize=100)) 
-end_time <- Sys.time()
-runtime_mob <- end_time - start_time #takes forever!
-#save.image("mob_mirt_result.RData")
-
-
-
 
 
 #lavaan
@@ -171,7 +163,7 @@ mob_lav <- mob(formula=" simuvar1 + simuvar2 + simuvar3 + simuvar4 + simuvar5 + 
                 fit = lav_fit(model_lav),
                 control = mob_control(ytype = "data.frame",bonferroni = T, maxdepth = Inf,minsize=100)) 
 end_time <- Sys.time()
-runtime_mob <- end_time - start_time #takes forever!
+runtime_mob <- end_time - start_time 
 #save.image("mob_mirt_result.RData")
 
 
@@ -180,18 +172,6 @@ nodefun <-function(i) c(
   paste("n =", i$n)
 )
 plot(mob_lav,terminal_panel = node_terminal,tp_args = list(FUN = nodefun)) #YES!
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -219,6 +199,19 @@ scores <- estfun.MHRM(fit_mirt)
 
 stab_mirt <- gefp(fit_mirt, fit=NULL, scores=estfun.MHRM, order.by = simu[,"num1"])
 sctest(stab_mirt,functional=  supLM(from = 0.15, to = NULL)) #suplm
+
+
+##not feasible!
+#MIRT
+start_time <- Sys.time()
+mob_mirt <- mob(formula=" simuvar1 + simuvar2 + simuvar3 + simuvar4 + simuvar5 + simuvar6 + simuvar7 + simuvar8 + simuvar9 ~ cat1 + num1 + ord1 + rand1 + rand2 + rand3 + rand4 + rand5",
+                data = simu,
+                fit = mirt_fit(model_mirt),
+                control = mob_control(ytype = "data.frame",bonferroni = T, maxdepth = Inf,minsize=100)) 
+end_time <- Sys.time()
+runtime_mob <- end_time - start_time #takes forever!
+#save.image("mob_mirt_result.RData")
+
 
 
 #############################################################################

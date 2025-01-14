@@ -54,12 +54,12 @@ estfun.WLS <- function(object){
   e = cbind(e1,e2)
   
   #weigthing matrix
-  if(object@call[["estimator"]]=="WLS"){
+  #if(object@call[["estimator"]]=="WLS"){
     W = lavsamplestats@WLS.V[[1]] #WLS.V is already inverted W!
-  } else if(object@call[["estimator"]]=="DWLS"){
-    W = matrix(0,ncol=length(c(th,sigma)), nrow=length(c(th,sigma)))
-    diag(W) = lavsamplestats@WLS.VD[[1]] #WLS.V is already inverted W!
-  }
+  #} else if(object@call[["estimator"]]=="DWLS"){
+  #  W = matrix(0,ncol=length(c(th,sigma)), nrow=length(c(th,sigma)))
+  #  diag(W) = lavsamplestats@WLS.VD[[1]] #WLS.V is already inverted W!
+  #}
 
   
   #Delta
