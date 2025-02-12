@@ -169,16 +169,23 @@ for(iter in seq_len(max_iter)) {
 
 
 
-
-
-#### test GEE scores
-fit.wls <- lavaan::cfa(model_lav, data = Data, ordered = TRUE, estimator = "WLS", std.lv=F )
-coef(fit.wls) - new.x 
-
-
 ################################################################################
 ############################### Evaluate #######################################
 ################################################################################
+
+#### compare GEE scores
+fit.wls <- lavaan::cfa(model_lav, data = Data, ordered = TRUE, estimator = "WLS", std.lv=F )
+coef(fit.wls) - new.x 
+
+model_mirt <- mirt::mirt.model('
+  Eta1 = 1-3
+  Eta2 = 4-6
+  Eta3 = 7-9
+  COV=Eta1*Eta2*Eta3')
+fit.mirt <- mirt::mirt(Data, model=model_mirt, itemtype="graded",method="MHRM" )  
+
+
+
 SC_GEE = SCORES; colSums(SC_GEE)
 SC_WLS = lavaan::lavScores(fit.wls); colSums(SC_WLS)
 round(diag(cor(SC_GEE, SC_WLS)), 5)   

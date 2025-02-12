@@ -1,7 +1,7 @@
 
 
 #PIEG model without mean structure and with standard LV-variance
-datagen <- function(model,mode="all",times=1,ID=250,korr="random",schwellen=4,items=3,latvar=3,rmsea_cutoff=.05){ 
+datagen <- function(model,mode="all",dif_items=9,times=1,ID=250,korr="random",schwellen=4,items=3,latvar=3,rmsea_cutoff=.05){ 
   l <- schwellen #Anzahl an Schwellen
   m <- items #Anzahl an Items pro latente Variable
   n <- latvar #Anzahl an latente Variablen
@@ -12,6 +12,8 @@ datagen <- function(model,mode="all",times=1,ID=250,korr="random",schwellen=4,it
     random.signs   <- sample(c(1,-1), N, replace=TRUE)      
     return(random.numbers * random.signs)
   }
+  
+  if(mode=="none"){dif_items = 0}
   
   schwellen_probs <- function(schwellen){
     if(schwellen == 6) return(c(0.10,0.25,0.40,0.60,0.75,0.90)  )
@@ -95,6 +97,25 @@ datagen <- function(model,mode="all",times=1,ID=250,korr="random",schwellen=4,it
     kappa <- round(kappa,2)
     
     
+    
+    
+    ## Number of dif items
+    if(h>1 & dif_items > 0 & dif_items < 5){
+      if(mode == "thresholds" | mode == "all"){
+        kappa_new = kappa
+        kappa = saved_kappas[[h-1]]
+        kappa[,1:dif_items] = kappa_new[,1:dif_items]
+      }
+      if(mode=="betas" | mode == "all"){ #at least dif_items=2 needed 
+        beta_new = beta
+        beta = saved_betas[[h-1]]
+        beta[1:dif_items] = beta[1:dif_items]
+      }
+    }
+    
+    
+    
+    
     ## Daten generieren
     probitY <- array(NA,c(ID,l,m,n)) #(ID, Schwellen, Items, Lat.Var.)
     PY <-  array(NA,c(ID,l,m,n)) 
@@ -171,13 +192,3 @@ datagen <- function(model,mode="all",times=1,ID=250,korr="random",schwellen=4,it
 }
 
 
-
-################################################################################
-################################# Sandbox ######################################
-################################################################################
-#model_lav = '
-#  Eta1 =~ simuvar1 + simuvar2 + simuvar3 
-#  Eta2 =~ simuvar4 + simuvar5 + simuvar6 
-#  Eta3 =~ simuvar7 + simuvar8 + simuvar9'
-#fits_random <- datagen(model = model_lav, mode = 'thresholds', schwellen = 3, ID=500, times=2, items=3, latvar = 3)
-#model = model_lav; mode = 'none'; schwellen = 3; ID=500; times=2; items=3; latvar = 3; korr="random"

@@ -178,25 +178,23 @@ for(iter in seq_len(max_iter)) {
 ################################################################################
 ############################### Evaluate #######################################
 ################################################################################
-source("estfun_GEE.R")
 
-#### test GEE scores
-fit.wls <- lavaan::cfa(model, data = Data, ordered = TRUE, estimator = "WLS", std.lv=F )
+#### compare GEE scores
+fit.wls <- lavaan::cfa(model_lav, data = Data, ordered = TRUE, estimator = "WLS", std.lv=F )
 coef(fit.wls) - new.x 
 
-#fit.dwls <- lavaan::cfa(model, data = Data, ordered = TRUE, estimator = "DWLS", std.lv=F )
-#coef(fit.dwls) - new.x #Binary: DWLS estimates almost identical parameters
+model_mirt <- mirt::mirt.model('
+  Eta1 = 1-3
+  Eta2 = 4-6
+  Eta3 = 7-9
+  COV=Eta1*Eta2*Eta3')
+fit.mirt <- mirt::mirt(Data, model=model_mirt, itemtype="graded",method="MHRM" )  
 
 
 
-SC1 = SCORES; colSums(SC1)
-#SC2 = estfun.GEE(fit.wls); colSums(SC2) #doesn't sum up to one!
-SC3 = lavaan::lavScores(fit.wls); colSums(SC3)
-
-#round(diag(cor(SC1, SC2)), 5) #near-perfect correlation
-#round(diag(cor(SC2, SC3)), 5)  
-round(diag(cor(SC1, SC3)), 5)   
-
+SC_GEE = SCORES; colSums(SC_GEE)
+SC_WLS = lavaan::lavScores(fit.wls); colSums(SC_WLS)
+round(diag(cor(SC_GEE, SC_WLS)), 5)   
 
 
 

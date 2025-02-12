@@ -31,7 +31,7 @@ schwellen = c("1","2","4","6")
 for(n in 1:3){
   for(s in 1:4){
 
-    load(paste0("multivariate/only betas/240210_",schwellen[s],"_",anzahl[n],"_multi_betas.RData"))
+    load(paste0("multivariate/only thresholds only two items/250201_",schwellen[s],"_",anzahl[n],"_multi_thresh22.RData"))
     
     
     for(c in 1:2){
@@ -53,7 +53,7 @@ for(n in 1:3){
 
 ############################### Plot ########################################
 #jpeg(filename="multidim_plot.jpg", width=11000, height=10500, res=1200)
-jpeg(filename="multidim_plot.jpg", width=5500, height=5250, res=600)
+jpeg(filename="multidim_plot_thresh22.jpg", width=5500, height=5250, res=600)
 
 g = c("tab_mirt_maxBB","tab_WLS_maxBB","tab_mirt_meanL2BB","tab_WLS_meanL2BB","tab_mirt_supLM","tab_WLS_supLM","tab_mirt_ordL2BB","tab_WLS_ordL2BB","tab_mirt_ordmax","tab_WLS_ordmax","tab_mirt_catL2BB","tab_WLS_catL2BB")
 for(i in 1:length(g)){
@@ -115,7 +115,7 @@ schwellen = c("1","2","4","6")
 for(n in 1:3){
   for(s in 1:4){
     
-    load(paste0("univariate/only betas/240210_",anzahl[n],"_",schwellen[s],"_univ_betas.RData"))
+    load(paste0("univariate/only thresholds only one item/250201_",anzahl[n],"_",schwellen[s],"_univ_thresh20.RData"))
     
     
     for(c in 1:2){
@@ -136,7 +136,7 @@ for(n in 1:3){
 ############################### Plot ########################################
 
 #jpeg(filename="unidim_plot.jpg", width=11000, height=10500, res=1200)
-jpeg(filename="unidim_plot.jpg", width=5500, height=5250, res=600)
+jpeg(filename="unidim_plot_thresh20.jpg", width=5500, height=5250, res=600)
 
 g = c("tab_mirt_maxBB","tab_WLS_maxBB","tab_mirt_meanL2BB","tab_WLS_meanL2BB","tab_mirt_supLM","tab_WLS_supLM","tab_mirt_ordL2BB","tab_WLS_ordL2BB","tab_mirt_ordmax","tab_WLS_ordmax","tab_mirt_catL2BB","tab_WLS_catL2BB")
 for(i in 1:length(g)){

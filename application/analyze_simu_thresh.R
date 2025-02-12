@@ -13,10 +13,10 @@ source("univ_simu.R")
 ######################### Ordinal Data ######################################### 
 ################################################################################
 
-getDataSimulation <- function(items,n,schwellen){
+getDataSimulation <- function(items,n,schwellen,mode,dif_items){
 
   #fluctuation
-  fits_random <- datagen(schwellen = schwellen, ID=n/2, times=2, items=items)
+  fits_random <- datagen(mode = mode, dif_items = dif_items, schwellen = schwellen, ID=n/2, times=2, items=items)
   simu1 <- fits_random[["data"]][["data1"]]
   simu1$rand1 <- replicate(nrow(simu1),sample(c(1,2,3),1,prob=c(0.25,0.5,0.25))) #ordinal
   simu1$rand2 <- round(runif(nrow(simu1),min=100,max=200),2)                     #metric
@@ -151,8 +151,8 @@ getResultsTime <- function(g,.flucs){
 
 
 ################################################################################
-for(nn in c(3000)){
-  for(sc in c(1,2,4,6)){
+for(nn in c(1000,2000)){  #c(500,1000,2000)
+  for(sc in c(1,2,4,6)){  #c(1,2,4,6)
     ##hyperparamters:
     ii=5
     ##
@@ -163,7 +163,7 @@ for(nn in c(3000)){
     doParallel::registerDoParallel(cl)
     result <- foreach(x=1:iters,.packages=c("lavaan","psych","resample"),  .errorhandling="pass") %dopar% {
       
-      simus = getDataSimulation(items=ii,n=nn,schwellen=sc)
+      simus = getDataSimulation(items=ii,n=nn,schwellen=sc,mode="thresholds",dif_items=1)
       models <- getModelsSimulation(simus)
       flucs <- getFlucsSimulation(models,simus)
       res = sapply(1:2,function(g) {getResultsSimulation(g,.flucs=flucs)} )
@@ -222,7 +222,7 @@ for(nn in c(3000)){
     rownames(resu_t) <- c("fluc_num","fluc_ord","fluc_cat","model")
     colnames(resu_t) <- c("medfluc/mirt","medfluc/WLS")
     ######
-    save(result, resu, resu_t,nn,sc, file=paste0("240208_",nn,"_",sc,"_result_univ_betas.RData"))
+    save(result, resu, resu_t,nn,sc, file=paste0("250201_",nn,"_",sc,"_univ_thresh20.RData"))
     
     
   }
