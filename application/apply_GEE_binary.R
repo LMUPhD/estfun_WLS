@@ -1,6 +1,6 @@
-setwd("//dss/dsshome1/0B/ra35tik2/einleitung")
+#setwd("//dss/dsshome1/0B/ra35tik2/einleitung")
 #source("univ_simu.R") #simulate data (univariate model)
-source("multi_simu.R") #simulate data (multivariate model)
+source("application/multi_simu.R") #simulate data (multivariate model)
 
 ################################################################################
 ########################## GEE estimation non-binary ###########################

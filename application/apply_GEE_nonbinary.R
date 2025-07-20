@@ -1,15 +1,27 @@
 setwd("C:\\Users\\classe\\Desktop\\Diss\\Paper3\\estfun_WLS")
-source("application\\univ_simu.R") #simulate data (univariate model)
+#source("application/univ_simu.R") #simulate data (univariate model)
+source("application/multi_simu.R") #simulate data (multivariate model)
 
 
 ################################################################################
 ########################## GEE estimation non-binary ###########################
 ################################################################################
-fits_random <- datagen(schwellen = 1, ID=400, times=1, items=5) # categories
-real_params = c(fits_random$betas$beta1[-1],as.vector(fits_random$kappas$kappa1),fits_random$vars$var1)
+
+model_lav = '
+  Eta1 =~ simuvar1 + simuvar2 + simuvar3 
+  Eta2 =~ simuvar4 + simuvar5 + simuvar6 
+  Eta3 =~ simuvar7 + simuvar8 + simuvar9'
+model = model_lav
+fits_random <- datagen(model=model_lav, schwellen = 4, ID=2000, times=1, items=3,latvar=3) 
 Data = fits_random[["data"]][["data1"]]
-#Data = Data-1
-model = fits_random[["model"]][[1]]
+
+
+
+#fits_random <- datagen(schwellen = 4, ID=1000, times=1, items=5) # categories
+#real_params = c(fits_random$betas$beta1[-1],as.vector(fits_random$kappas$kappa1),fits_random$vars$var1)
+#Data = fits_random[["data"]][["data1"]]
+##Data = Data-1
+#model = fits_random[["model"]][[1]]
 
 
 
