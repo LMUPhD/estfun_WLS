@@ -10,7 +10,7 @@ estfun.GEE <- function(object){
     polychors = Sigma.hat[[1]]
     th = as.vector(GLIST[["tau"]])
     th.pr = pnorm(th*-1)
-    mus = unlist(lapply(1:nvar, function(x) get_mus(x, th, lv, nvar, catvals)   ))
+    mus = apply_get_mus(th, lv, nvar,  catvals)
     combs = rbind(  combn(1:nvar,2), lavaan::lav_matrix_vech(polychors,diagonal=FALSE) )           
     joint_exps = apply_get_joint_exp(combs, th, lv, nvar, catvals)  #E(y1y2) 
     sigma =  joint_exps - t(  lavaan::lav_matrix_vech(tcrossprod(mus) ,diagonal=FALSE) )  #E(y1y2)-mu1mu2
@@ -58,7 +58,7 @@ estfun.GEE <- function(object){
   
   ###e2 
   catvals = lapply(1:nvar, function(x)  as.numeric(names(table(X[,x]))) )
-  mus = unlist(lapply(1:nvar, function(x) get_mus(x, th, lv, nvar, catvals)   ))
+  mus = apply_get_mus(th, lv, nvar,  catvals)
   y_minus_mu = t( apply(X, 1L, function(x) x - mus ) ) 
   
   combs = rbind(  combn(1:nvar,2), lavaan::lav_matrix_vech(polychors,diagonal=FALSE) ) 

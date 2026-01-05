@@ -1,39 +1,4 @@
 setwd("C:\\Users\\classe\\Desktop\\Diss\\Paper3\\estfun_WLS")
-
-
-
-################################################################################
-################################################################################
-
-# C implementation #use R 4.4.3!!!!
-#toms462
-#Rcpp::sourceCpp("Rcpp/toms462_arma.cpp") #compile
-#pbivnor(0.5, 0.5, 0.3) #doesnt work...
-#R wrapper
-#pbivnor_cpp <- function(x, y, r) {
-#  pbivnor(x*-1, y*-1, r)
-#}
-
-#pbv rcpp
-Rcpp::sourceCpp("Rcpp/gee_rcpp_support.cpp")
-pbv_rcpp_pbvnorm(0.5, 0.5, 0.3) #that also works...
-pbivnorm__rcpp_wls(c(0.5,0.5), c(Inf,0.5), c(0.3,0.3)) #that also works...
-
-
-
-# make use of the fact that pbivnor can handle vectors!
-# for this let pnorm be added to the c++ file
-# then let get_mus and get_joint_exp be written directly in C++
-
-
-
-
-
-################################################################################
-################################################################################
-
-
-
 source("application/multi_simu.R") #simulate data (multivariate model)
 model_lav = '
   Eta1 =~ simuvar1 + simuvar2 + simuvar3 
@@ -62,6 +27,96 @@ catvals = lapply(1:nvar, function(x)  as.integer(names(table(X[,x]))) )
 
 
 
+
+################################################################################
+################################################################################
+# compute sigma in C++?
+
+lav_object_inspect_coef(object,type = "free", add.labels = F)
+GLIST <- lav_model_x2GLIST(lavmodel = lavmodel, x=params, type="free")
+Sigma.hat <- computeSigmaHat(lavmodel = lavmodel, GLIST = GLIST)
+
+
+#to compute sigma is not difficult (muthen1984, Formula 6)
+GLIST$lambda %*% GLIST$psi %*% t(GLIST$lambda) + GLIST$theta 
+
+#Formula 5 does not have to be specificalls considered. E(y*) is always zero (nu)
+#(muthen1984, Formula 5)
+GLIST$nu + GLIST$lambda %*% GLIST$alpha
+
+
+
+
+################################################################################
+################################################################################
+source("Rcpp/support_rcpp.R")
+unlist(lapply(1:nvar, function(x) get_mus(x, th, lv, nvar, catvals)   ))
+
+
+## C++
+Rcpp::sourceCpp("Rcpp/test_stuff.cpp")
+apply_get_mus(th, lv, nvar,  catvals)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+################################################################################
+################################################################################
+#how does getCols work in C++?
+Rcpp::sourceCpp("Rcpp/test_stuff.cpp")
+res_c = getCols(lv,nvar) #could change output to Rcpp::NumericMatrix but maybe not necessary
+
+
+#...and in R
+source("support.R")
+res_r = getCols(lv,nvar) 
+
+## analyze differeces
+class(res_r) #matrix array
+class(res_c) #list
+
+
+################################################################################
+################################################################################
+
+# C implementation #use R 4.4.3!!!!
+#toms462
+#Rcpp::sourceCpp("Rcpp/toms462_arma.cpp") #compile
+#pbivnor(0.5, 0.5, 0.3) #doesnt work...
+#R wrapper
+#pbivnor_cpp <- function(x, y, r) {
+#  pbivnor(x*-1, y*-1, r)
+#}
+
+#pbv rcpp
+Rcpp::sourceCpp("Rcpp/gee_rcpp_support.cpp")
+pbv_rcpp_pbvnorm(0.5, 0.5, 0.3) #that also works...
+pbivnorm__rcpp_wls(c(0.5,0.5), c(Inf,0.5), c(0.3,0.3)) #that also works...
+
+
+
+################################################################################
+################################################################################
+#get probas in C++ 
+
+
 #should be the same result
 Rcpp::sourceCpp("Rcpp/gee_rcpp_support.cpp")
 system.time(
@@ -75,19 +130,6 @@ system.time(
   apply(combs, 2L, function(x) get_joint_exp(x, th, lv, nvar, catvals)  ) #E(y1y2)
 )
 print(apply(combs, 2L, function(x) get_joint_exp(x, th, lv, nvar, catvals)  ) )
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

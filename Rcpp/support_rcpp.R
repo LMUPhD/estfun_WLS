@@ -5,37 +5,6 @@ library(lavaan)
 
 
 
-get_mus <- function(var, th, lv, nvar,  catvals){  
-  
-  selcols = getCols(lv,nvar)
-  cols = selcols[[var]][1]:selcols[[var]][2]
-  p.item = th[cols] 
-  catprobs.item = sapply(1:lv[var], function(x){
-    if(x==1) {
-      prob_cat = pnorm(p.item[1])
-    }
-    else if(x==lv[var]) {
-      prob_cat = pnorm(tail(p.item, n=1)*-1)
-    } else{ 
-      prob_cat = pnorm(p.item[x]) - 
-        pnorm(p.item[x-1])   
-    }
-    return(prob_cat)
-  }) 
-  
-  
-  
-  mu = sum(sapply(1:lv[var], function(y){
-    catvals[[var]][y] * catprobs.item[y]
-  }))
-  
-  
-  return(mu)
-}
-
-
-
-
 
 get_sigmas_indi <- function(c, th, lv, nvar, polychors){
   cl1 = as.numeric(substr(c, 1, 1))

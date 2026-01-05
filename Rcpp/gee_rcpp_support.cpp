@@ -139,7 +139,6 @@ Rcpp::NumericVector pbv_rcpp_pbvnorm( Rcpp::NumericVector x, Rcpp::NumericVector
 
 
 ////** own function pvivnorm_wls
-// [[Rcpp::export]]
 double pbivnorm__rcpp_wls0(double x, double y, double rho) {
   // Define infinity constants
   const double pos_inf = std::numeric_limits<double>::infinity();
@@ -159,7 +158,6 @@ double pbivnorm__rcpp_wls0(double x, double y, double rho) {
   }
 }
 
-// [[Rcpp::export]]
 Rcpp::NumericVector pbivnorm__rcpp_wls( Rcpp::NumericVector x, Rcpp::NumericVector y,
                                       Rcpp::NumericVector rho)
 {
@@ -197,16 +195,7 @@ std::vector<std::vector<int>> getCols(const std::vector<int>& lv, int nvar) {
 
 
 
-
-
-
-
-
-
-
-
-
-// Alternative: Use a struct for clarity
+// Use a struct for clarity
 struct VariablePair {
   int var1;
   int var2;
@@ -214,10 +203,10 @@ struct VariablePair {
 };
 
 double get_joint_exp(const VariablePair& pair,
-                            const std::vector<double>& th, 
-                            const std::vector<int>& lv, 
-                            int nvar, 
-                            const std::vector<std::vector<int>>& catvals) {
+                     const std::vector<double>& th, 
+                     const std::vector<int>& lv, 
+                     int nvar, 
+                     const std::vector<std::vector<int>>& catvals) {
   
   std::vector<std::vector<int>> selcols = getCols(lv, nvar);
   
@@ -323,3 +312,63 @@ NumericVector apply_get_joint_exp(NumericMatrix combs,
   
   return results;
 }
+
+
+
+
+
+
+
+
+// translate get_mus to C++
+// [[Rcpp::export]]
+Rcpp::NumericVector apply_get_mus(const std::vector<double>& th, 
+                                  const std::vector<int>& lv, 
+                                  int nvar, 
+                                  const std::vector<std::vector<int>>& catvals){
+  
+  
+  Rcpp::NumericVector result;
+  
+  //get cols
+  std::vector<std::vector<int>> selcols = getCols(lv, nvar);
+  
+  for(int var = 0; var < nvar; var++){
+    
+    // Get threshold indices
+    int wth_start = selcols[var][0] - 1;
+    int wth_end = selcols[var][1] - 1;
+    
+    //Get thresholds
+    std::vector<double> p_item;
+    for (int i = wth_start; i <= wth_end; i++){
+      p_item.push_back(th[i]);
+    }
+    
+    //get probas over categories
+    // Get max category index from 1-based to 0-based
+    int max_lv_idx = lv[var] - 1; 
+    
+    double mu = 0.0;
+    
+    for (int i = 0; i<= max_lv_idx; i++){
+      double prob_cat;
+      double cat_val = catvals[var][i];
+      
+      if (i==0){
+        prob_cat = pbv_rcpp_pnorm0(p_item[0]);
+      } else if (i == max_lv_idx){
+        prob_cat = pbv_rcpp_pnorm0(p_item.back() * -1);
+      } else {
+        prob_cat = pbv_rcpp_pnorm0(p_item[i]) - pbv_rcpp_pnorm0(p_item[i-1]);
+      }
+      
+      mu += cat_val * prob_cat; 
+    }
+    
+    result.push_back(mu);
+  }
+  
+  return result;
+}
+
