@@ -6,27 +6,7 @@ library(lavaan)
 
 
 
-get_sigmas_indi <- function(c, th, lv, nvar, polychors){
-  cl1 = as.numeric(substr(c, 1, 1))
-  cl2 = as.numeric(substr(c, 3, 3))
-  
-  if(length(unique(cl1))==1){
-    p = 1
-  } else {
-    p = polychors[cl1[1],cl1[2]]
-  }
-  
-  selcols = getCols(lv,nvar)
-  wth1=selcols[[cl1[1]]][1]:selcols[[cl1[1]]][2]
-  wth2=selcols[[cl1[2]]][1]:selcols[[cl1[2]]][2]
-  th_vars = rbind(th[wth1],th[wth2])
-  
-  p_katkat = pbv::pbvnorm(x = th_vars[1,cl2[1]]*-1, y =th_vars[2,cl2[2]]*-1, rho = p) #P(y_jk,y_sh)
-  sigma_indi = p_katkat - pnorm(th_vars[1,cl2[1]]*-1)*pnorm(th_vars[2,cl2[2]]*-1) #P(y_jk,y_sh) - mu_jk*mu_sh
-  
-  
-  return(sigma_indi)
-}
+
 
 
 doDummySingleVar <- function(X,lv,ntot,num){

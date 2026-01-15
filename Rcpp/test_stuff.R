@@ -22,15 +22,125 @@ polychors = object@Fit@Sigma.hat[[1]]
 th = object@Fit@TH[[1]]
 th.pr = pnorm( th*-1)                                       #add the diagonal of the model implied matrix!                   
 lv = lavdata@ov[["nlev"]]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+################################################################################
+################################################################################
+# adjust code so that it is zero based and efficient!
+Rcpp::sourceCpp("Rcpp/test_stuff.cpp")
+combs = create_combs(nvar,polychors) #combs 0 based!!
+catvals = get_unique_values_per_column(X)
+apply_get_joint_exp(combs,th,lv,nvar,catvals) #joint exps
+apply_get_mus(th,lv,nvar,catvals) #mus
+mat1_c = create_weight_matrix(th, lv, nvar, polychors)
+View(mat1_c)
+
+
+#R
+source("support.R")
 combs = rbind(  combn(1:nvar,2), lavaan::lav_matrix_vech(polychors,diagonal=FALSE) ) 
 catvals = lapply(1:nvar, function(x)  as.integer(names(table(X[,x]))) )
+apply(combs, 2L, function(x) get_joint_exp(x, th, lv, nvar, catvals)  ) #joint exps
+unlist(lapply(1:nvar, function(x) get_mus(x, th, lv, nvar, catvals)   )) #mus
+
+seqnc=c()
+for(l in seq(nvar)){ seqnc = c(seqnc,sapply(head(seq(lv[l]),-1), function(y) paste(l,y )  ))}
+combs_indi = combn(seqnc,2)
+sigma_indi = apply(combs_indi, 2L, function(x) get_sigmas_indi(x, th, lv, nvar, polychors)  ) 
+mat1 = matrix(0, ncol=length(th),nrow=length(th))
+mat1[lower.tri(mat1)] = sigma_indi 
+mat1[upper.tri(mat1)] <- t(mat1)[upper.tri(t(mat1))] # 
+diag(mat1) = th.pr*(1-th.pr)        #mus for indicators in diagonal      
+View(mat1)
+################################################################################
+################################################################################
+# get GLIST
+
+params <- lav_object_inspect_coef(object,type = "free", add.labels = F)
+
+lavmodel <- object@Model
+GLIST <- lav_model_x2GLIST(lavmodel = lavmodel, x=params, type="free")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
 
 ################################################################################
 ################################################################################
-# compute sigma in C++?
+# get sigma indi in C++?
+get_sigmas_indi <- function(c, th, lv, nvar, polychors){
+  cl1 = as.numeric(substr(c, 1, 1))
+  cl2 = as.numeric(substr(c, 3, 3))
+  
+  if(length(unique(cl1))==1){
+    p = 1
+  } else {
+    p = polychors[cl1[1],cl1[2]]
+  }
+  
+  selcols = getCols(lv,nvar)
+  wth1=selcols[[cl1[1]]][1]:selcols[[cl1[1]]][2]
+  wth2=selcols[[cl1[2]]][1]:selcols[[cl1[2]]][2]
+  th_vars = rbind(th[wth1],th[wth2])
+  
+  p_katkat = pbv_rcpp_pbvnorm0(th_vars[1,cl2[1]]*-1, th_vars[2,cl2[2]]*-1, p) #P(y_jk,y_sh)
+  sigma_indi = p_katkat - pbv_rcpp_pnorm0(th_vars[1,cl2[1]]*-1)*pbv_rcpp_pnorm0(th_vars[2,cl2[2]]*-1) #P(y_jk,y_sh) - mu_jk*mu_sh
+  
+  
+  return(sigma_indi)
+}
+
+c= combs_indi[,1]
+get_sigmas_indi(c, th, lv, nvar, polychors)
+sigma_indi = apply(combs_indi, 2L, function(x) get_sigmas_indi(x, th, lv, nvar, polychors)  ) 
+mat1 = matrix(0, ncol=length(th),nrow=length(th))
+mat1[lower.tri(mat1)] = sigma_indi 
+mat1[upper.tri(mat1)] <- t(mat1)[upper.tri(t(mat1))] # 
+diag(mat1) = th.pr*(1-th.pr)        #mus for indicators in diagonal      
+
+
+#############
+Rcpp::sourceCpp("Rcpp/test_stuff.cpp")
+mat1_cpp <- create_weight_matrix_optimized(th, lv, nvar, polychors)
+
+
+################################################################################
+################################################################################
+# compute sigma in C++
 
 lav_object_inspect_coef(object,type = "free", add.labels = F)
 GLIST <- lav_model_x2GLIST(lavmodel = lavmodel, x=params, type="free")
@@ -56,18 +166,6 @@ unlist(lapply(1:nvar, function(x) get_mus(x, th, lv, nvar, catvals)   ))
 ## C++
 Rcpp::sourceCpp("Rcpp/test_stuff.cpp")
 apply_get_mus(th, lv, nvar,  catvals)
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

@@ -11,7 +11,7 @@ estfun.GEE <- function(object){
     th = as.vector(GLIST[["tau"]])
     th.pr = pnorm(th*-1)
     mus = apply_get_mus(th, lv, nvar,  catvals)
-    combs = rbind(  combn(1:nvar,2), lavaan::lav_matrix_vech(polychors,diagonal=FALSE) )           
+    combs = create_combs(nvar,polychors)         
     joint_exps = apply_get_joint_exp(combs, th, lv, nvar, catvals)  #E(y1y2) 
     sigma =  joint_exps - t(  lavaan::lav_matrix_vech(tcrossprod(mus) ,diagonal=FALSE) )  #E(y1y2)-mu1mu2
     return(c(th.pr,sigma))
@@ -57,15 +57,11 @@ estfun.GEE <- function(object){
 
   
   ###e2 
-  catvals = lapply(1:nvar, function(x)  as.numeric(names(table(X[,x]))) )
+  catvals = get_unique_values_per_column(X)
   mus = apply_get_mus(th, lv, nvar,  catvals)
   y_minus_mu = t( apply(X, 1L, function(x) x - mus ) ) 
-  
-  combs = rbind(  combn(1:nvar,2), lavaan::lav_matrix_vech(polychors,diagonal=FALSE) ) 
+  combs = create_combs(nvar,polychors) #combs 0 based!!
   joint_exps = apply_get_joint_exp(combs, th, lv, nvar, catvals) #E(y1y2)  #completely written in c++ now!
-
-  
-  
   sigma =  joint_exps - t(  lavaan::lav_matrix_vech(tcrossprod(mus) ,diagonal=FALSE) )  #E(y1y2)-mu1mu2
   
   s_vech = t(apply(y_minus_mu, 1L, function(i){    lavaan::lav_matrix_vech(tcrossprod(i) ,diagonal=FALSE) })) #s=c( (y1-mu1)(y2-mu2)....
@@ -82,15 +78,7 @@ estfun.GEE <- function(object){
   ###weigthing matrix
   
   #get sigma_indi
-  seqnc=c()
-  for(l in seq(nvar)){ seqnc = c(seqnc,sapply(head(seq(lv[l]),-1), function(y) paste(l,y )  ))}
-  combs_indi = combn(seqnc,2)
-  sigma_indi = apply(combs_indi, 2L, function(x) get_sigmas_indi(x, th, lv, nvar, polychors)  ) 
-  
-  mat1 = matrix(0, ncol=length(th),nrow=length(th))
-  mat1[lower.tri(mat1)] = sigma_indi 
-  mat1[upper.tri(mat1)] <- t(mat1)[upper.tri(t(mat1))] # 
-  diag(mat1) = th.pr*(1-th.pr)        #mus for indicators in diagonal                                           
+  mat1 = create_weight_matrix(th, lv, nvar, polychors)                                           
 
   diag2 = colMeans(s_vech^2) - sigma^2
   mat2 = matrix(diag(c(diag2)),ncol=length(diag2) )
