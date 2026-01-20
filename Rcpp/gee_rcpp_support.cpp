@@ -1,17 +1,19 @@
 // [[Rcpp::depends(RcppArmadillo)]]
-// #include <RcppArmadillo.h>
-#include <Rcpp.h>
+#include <RcppArmadillo.h>
 
 #include <vector>
 #include <cmath>
 #include <algorithm>
 #include <iostream>
 #include <limits>
-
+#include <unordered_set>  
+// [[Rcpp::interfaces(r, cpp)]]
 
 using namespace Rcpp;
+using namespace arma;
 
 // [[Rcpp::interfaces(r, cpp)]]
+
 
 
 const double pi = 3.1415926535897;
@@ -28,6 +30,7 @@ double pbv_rcpp_pnorm0( double z)
 
 ///********************************************************************
 ///** pbv_rcpp_pnorm
+// [[Rcpp::export]]
 Rcpp::NumericVector pbv_rcpp_pnorm( Rcpp::NumericVector x)
 {
     int N = x.size();
@@ -168,6 +171,72 @@ Rcpp::NumericVector pbivnorm__rcpp_wls( Rcpp::NumericVector x, Rcpp::NumericVect
 
 ///********************************************************************
 
+// [[Rcpp::export]]
+NumericMatrix minus_mat(const NumericMatrix& X, const NumericVector& Y) {
+  int nrow = X.nrow();
+  int ncol = X.ncol();
+  
+  // Create output matrix
+  NumericMatrix result(nrow, ncol);
+  
+  // Subtract mus from each row of X
+  for (int i = 0; i < nrow; i++) {
+    for (int j = 0; j < ncol; j++) {
+      result(i, j) = X(i, j) - Y[j];
+    }
+  }
+  
+  return result;
+}
+
+
+// [[Rcpp::export]]
+NumericMatrix createDummies(const NumericMatrix& X, 
+                            const IntegerVector& lv) {
+  
+  int ntot = X.nrow();  // Number of observations
+  int nvar = X.ncol();  // Number of variables
+  
+  // Calculate total number of dummy variables
+  int total_dummy_cols = 0;
+  for (int var = 0; var < nvar; var++) {
+    total_dummy_cols += lv[var] - 1;  // One less dummy than categories
+  }
+  
+  // Create output matrix
+  NumericMatrix Xd(ntot, total_dummy_cols);
+  
+  int current_col = 0;  // Track current column in output matrix
+  
+  // Process each variable
+  for (int var = 0; var < nvar; var++) {
+    int ncat = lv[var];          // Number of categories for this variable
+    int ndummy = ncat - 1;       // Number of dummy variables for this variable
+    
+    // Get the data for this variable
+    NumericVector x = X(_, var);
+    
+    // Find minimum value
+    double minx = min(x);
+    
+    // Create dummy variables for this variable
+    int categ = minx - 1;  // Start one below the minimum
+    
+    for (int d = 0; d < ndummy; d++) {
+      categ = categ + 1;  // Increment category
+      
+      // Fill this dummy column for all observations
+      for (int i = 0; i < ntot; i++) {
+        Xd(i, current_col + d) = (x[i] > categ) ? 1.0 : 0.0;
+      }
+    }
+    
+    // Move to next block of dummy variables
+    current_col += ndummy;
+  }
+  
+  return Xd;
+}
 
 
 ///adjust so that it begins to count with with 0!
@@ -189,13 +258,13 @@ std::vector<std::vector<int>> getCols(const std::vector<int>& lv, int nvar) {
 
 
 // [[Rcpp::export]]
-List get_unique_values_per_column(const NumericMatrix& X) {
+Rcpp::List get_unique_values_per_column(const Rcpp::NumericMatrix& X) {
   int ncol = X.ncol();
-  List result(ncol);
+  Rcpp::List result(ncol);
   
   for (int col = 0; col < ncol; col++) {
     // Extract column
-    NumericVector column = X(_, col);
+    Rcpp::NumericVector column = X(_, col);
     int nrow = column.size();
     
     // Use unordered_set for O(1) insertion
@@ -211,7 +280,7 @@ List get_unique_values_per_column(const NumericMatrix& X) {
     std::sort(unique_vec.begin(), unique_vec.end());
     
     // Convert to NumericVector
-    result[col] = NumericVector(unique_vec.begin(), unique_vec.end());
+    result[col] = Rcpp::NumericVector(unique_vec.begin(), unique_vec.end());
   }
   
   return result;
@@ -219,7 +288,7 @@ List get_unique_values_per_column(const NumericMatrix& X) {
 
 
 // [[Rcpp::export]]
-List create_combs(int nvar, const NumericMatrix& sigma_mat) {
+Rcpp::List create_combs(int nvar, const Rcpp::NumericMatrix& sigma_mat) {
   if (sigma_mat.nrow() != nvar || sigma_mat.ncol() != nvar) {
     stop("sigma_mat must be a square matrix of size nvar x nvar");
   }
@@ -227,9 +296,9 @@ List create_combs(int nvar, const NumericMatrix& sigma_mat) {
   int n_combs = nvar * (nvar - 1) / 2;
   
   // Create vectors for each row
-  IntegerVector var1(n_combs);
-  IntegerVector var2(n_combs);
-  NumericVector corr(n_combs);
+  Rcpp::IntegerVector var1(n_combs);
+  Rcpp::IntegerVector var2(n_combs);
+  Rcpp::NumericVector corr(n_combs);
   
   int idx = 0;
   for (int i = 0; i < nvar; i++) {
@@ -242,7 +311,7 @@ List create_combs(int nvar, const NumericMatrix& sigma_mat) {
   }
   
   // Return as a list (like a data frame)
-  return List::create(
+  return Rcpp::List::create(
     Named("var1") = var1,
     Named("var2") = var2,
     Named("correlation") = corr
@@ -254,15 +323,15 @@ List create_combs(int nvar, const NumericMatrix& sigma_mat) {
 
 
 // [[Rcpp::export]]
-NumericVector apply_get_joint_exp(List combs,
-                                  NumericVector th,
-                                  IntegerVector lv,
+Rcpp::NumericVector apply_get_joint_exp(Rcpp::List combs,
+                                  Rcpp::NumericVector th,
+                                  Rcpp::IntegerVector lv,
                                   int nvar,
-                                  List catvals) {
+                                  Rcpp::List catvals) {
   
-  IntegerVector var1_vec = combs["var1"];
-  IntegerVector var2_vec = combs["var2"];
-  NumericVector corr_vec = combs["correlation"];
+  Rcpp::IntegerVector var1_vec = combs["var1"];
+  Rcpp::IntegerVector var2_vec = combs["var2"];
+  Rcpp::NumericVector corr_vec = combs["correlation"];
   
   int ncols = var1_vec.size();
   
@@ -284,7 +353,7 @@ NumericVector apply_get_joint_exp(List combs,
     col_ranges[var] = std::make_pair(mincol, maxcol);
     
     // Convert catvals for this variable
-    IntegerVector temp_catvals = catvals[var];
+    Rcpp::IntegerVector temp_catvals = catvals[var];
     catvals_vec[var] = as<std::vector<int>>(temp_catvals);
     
     // Create threshold vector for this variable with -Inf, actual thresholds, Inf
@@ -305,7 +374,7 @@ NumericVector apply_get_joint_exp(List combs,
   std::vector<double> th_vec = as<std::vector<double>>(th);
   std::vector<int> lv_vec = as<std::vector<int>>(lv);
   
-  NumericVector results(ncols);
+  Rcpp::NumericVector results(ncols);
   
   // Process each pair
   for (int col = 0; col < ncols; col++) {
@@ -363,7 +432,7 @@ Rcpp::NumericVector apply_get_mus(const std::vector<double>& th,
                                   const std::vector<std::vector<int>>& catvals){
   
   
-  Rcpp::NumericVector result;
+  Rcpp::NumericVector result(nvar);
   
   //get cols
   std::vector<std::vector<int>> selcols = getCols(lv, nvar);
@@ -401,7 +470,7 @@ Rcpp::NumericVector apply_get_mus(const std::vector<double>& th,
       mu += cat_val * prob_cat; 
     }
     
-    result.push_back(mu);
+    result[var] = mu;
   }
   
   return result;
@@ -412,10 +481,10 @@ Rcpp::NumericVector apply_get_mus(const std::vector<double>& th,
 
 
 // [[Rcpp::export]]
-NumericMatrix create_weight_matrix(const NumericVector& th_r,
-                                   const IntegerVector& lv_r,
+Rcpp::NumericMatrix create_upper_weight_matrix(const Rcpp::NumericVector& th_r,
+                                   const Rcpp::IntegerVector& lv_r,
                                    int nvar,
-                                   const NumericMatrix& polychors) {
+                                   const Rcpp::NumericMatrix& polychors) {
   
   // Convert inputs
   std::vector<double> th = as<std::vector<double>>(th_r);
@@ -423,7 +492,7 @@ NumericMatrix create_weight_matrix(const NumericVector& th_r,
   int n_th = th.size();
   
   // Initialize matrix
-  NumericMatrix weight_mat(n_th, n_th);
+  Rcpp::NumericMatrix weight_mat(n_th, n_th);
   
   // Pre-compute selcols
   std::vector<std::vector<int>> selcols = getCols(lv, nvar);
@@ -513,5 +582,151 @@ NumericMatrix create_weight_matrix(const NumericVector& th_r,
   
   return weight_mat;
 }
+
+
+
+
+
+// [[Rcpp::export]]
+NumericVector compute_sigma(const NumericVector& joint_exps, 
+                            const NumericVector& mus) {
+  int n = mus.size();
+  
+  // Pre-allocate result
+  NumericVector sigma = clone(joint_exps);  // Copy joint_exps
+  
+  // Subtract mu_i * mu_j from each element
+  int idx = 0;
+  for (int i = 0; i < n; i++) {
+    double mu_i = mus[i];
+    for (int j = i + 1; j < n; j++) {
+      sigma[idx] -= mu_i * mus[j];
+      idx++;
+    }
+  }
+  
+  return sigma;
+}
+
+
+// [[Rcpp::export]]
+NumericMatrix compute_vech_by_row(const NumericMatrix& mat) {
+  int nrow = mat.nrow();
+  int p = mat.ncol();
+  int n_pairs = p * (p - 1) / 2;
+  
+  NumericMatrix output(nrow, n_pairs);  
+  
+  for (int i = 0; i < nrow; i++) {
+    int idx = 0;
+    for (int j = 0; j < p; j++) {
+      for (int k = j + 1; k < p; k++) {
+        output(i, idx) = mat(i, j) * mat(i, k);
+        idx++;
+      }
+    }
+  }
+  
+  return output;
+}
+
+
+
+
+// [[Rcpp::export]]
+List x2GLIST_withtheta(NumericVector x,
+                       List m_free_idx,
+                       List x_free_idx,
+                       List GLIST_template,
+                       LogicalVector isSymmetric) {
+  
+  List GLIST = clone(GLIST_template);
+  int n_matrices = GLIST.size();
+  bool do_symmetric = (isSymmetric.size() > 0);
+  
+  // Step 1: Assign free parameters
+  for (int mm = 0; mm < n_matrices; mm++) {
+    NumericMatrix mat = GLIST[mm];
+    IntegerVector m_idx = m_free_idx[mm];
+    IntegerVector x_idx = x_free_idx[mm];
+    
+    if (m_idx.size() == 0) continue;
+    
+    for (int i = 0; i < m_idx.size(); i++) {
+      int pos = m_idx[i] - 1;
+      int nrow = mat.nrow();
+      int row = pos % nrow;
+      int col = pos / nrow;
+      mat(row, col) = x[x_idx[i] - 1];
+    }
+    
+    if (do_symmetric && isSymmetric[mm]) {
+      int n = mat.nrow();
+      if (n == mat.ncol()) {
+        for (int i = 0; i < n; i++) {
+          for (int j = i + 1; j < n; j++) {
+            mat(i, j) = mat(j, i);
+          }
+        }
+      }
+    }
+  }
+  
+  // Step 2: Compute theta for delta parameterization (categorical)
+  // Simplified: theta = 1 - diag(lambda %*% psi %*% t(lambda))
+  // since delta = 1 for all variables
+  
+  NumericMatrix lambda = GLIST[0];
+  NumericMatrix psi = GLIST[2];
+  NumericMatrix theta = GLIST[1];
+  
+  int nvar = lambda.nrow();
+  int nfac = lambda.ncol();
+  
+  // Compute lambda %*% psi %*% t(lambda)
+  for (int i = 0; i < nvar; i++) {
+    double diag_sum = 0.0;
+    for (int j = 0; j < nfac; j++) {
+      for (int k = 0; k < nfac; k++) {
+        diag_sum += lambda(i, j) * psi(j, k) * lambda(i, k);
+      }
+    }
+    // delta = 1, so 1/delta^2 = 1
+    theta(i, i) = 1.0 - diag_sum;
+  }
+  
+  GLIST[1] = theta;
+  
+  return GLIST;
+}
+
+
+
+// [[Rcpp::export]]
+arma::mat compute_SigmaHat(const arma::mat& lambda,
+                           const arma::mat& psi,
+                           const arma::mat& theta) {
+  return lambda * psi * lambda.t() + theta;  
+}
+
+
+
+
+
+
+// [[Rcpp::export]]
+arma::mat compute_scores(const arma::mat& Delta, 
+                         const arma::mat& W_inv, 
+                         const arma::mat& e){
+  
+  arma::mat Scores = (Delta.t() * W_inv * e.t()).t();
+  
+  return(Scores);
+  
+}
+
+///********************************************************************
+///********************************************************************
+
 
 

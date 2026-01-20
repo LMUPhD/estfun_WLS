@@ -1,19 +1,29 @@
 
-source("Rcpp/support_rcpp.R")
+Rcpp::sourceCpp("Rcpp/gee_rcpp_support.cpp")
 
 
 estfun.GEE <- function(object){
  
   compute.moments <- function(params, lavmodel = NULL) {
-    GLIST <- lav_model_x2GLIST(lavmodel = lavmodel, x=params, type="free")
-    Sigma.hat <- computeSigmaHat(lavmodel = lavmodel, GLIST = GLIST)
-    polychors = Sigma.hat[[1]]
+    
+    m.free.idx <- lavmodel@m.free.idx
+    x.free.idx <- lavmodel@x.free.idx
+    GLIST.template <- lavmodel@GLIST
+    isSymmetric <- lavmodel@isSymmetric
+    
+    GLIST <- x2GLIST_withtheta(x = params,
+                               m_free_idx = m.free.idx,
+                               x_free_idx = x.free.idx,
+                               GLIST_template = GLIST.template,
+                               isSymmetric = isSymmetric)
+    sigma_hat = compute_SigmaHat(GLIST$lambda,GLIST$psi,GLIST$theta)
     th = as.vector(GLIST[["tau"]])
-    th.pr = pnorm(th*-1)
+    
+    th.pr = pbv_rcpp_pnorm(th*-1)
     mus = apply_get_mus(th, lv, nvar,  catvals)
-    combs = create_combs(nvar,polychors)         
+    combs = create_combs(nvar,sigma_hat)         
     joint_exps = apply_get_joint_exp(combs, th, lv, nvar, catvals)  #E(y1y2) 
-    sigma =  joint_exps - t(  lavaan::lav_matrix_vech(tcrossprod(mus) ,diagonal=FALSE) )  #E(y1y2)-mu1mu2
+    sigma =  compute_sigma(joint_exps,mus)  #E(y1y2)-mu1mu2
     return(c(th.pr,sigma))
   }
    
@@ -26,15 +36,17 @@ estfun.GEE <- function(object){
   
   ntab <- unlist(lavdata@norig)
   ntot <- sum(ntab)
-  npar <- lav_object_inspect_npar(object)
+  npar <- sum(object@ParTable$free > 0L & !duplicated(object@ParTable$free))
   nvar <- ncol(lavsamplestats@cov[[1]])
   
+  #params
+  idx <- which(object@ParTable$free > 0L)
+  est <- object@Fit@est
+  params <- est[idx]
   
   #moments <- lavaan::fitted(object)
   X <- lavdata@X[[1]]
-  
   Score.mat <- matrix(NA, ntot, npar) #empty matrix
-  
   
   
   ################################################################################
@@ -45,31 +57,26 @@ estfun.GEE <- function(object){
   polychors = object@Fit@Sigma.hat[[1]] 
 
   th = object@Fit@TH[[1]]
-  th.pr = pnorm( th*-1)                                       #add the diagonal of the model implied matrix!                   
+  th.pr = pbv_rcpp_pnorm( th*-1)                                       #add the diagonal of the model implied matrix!                   
   
   #dummies
   lv = lavdata@ov[["nlev"]]
-  Xd = do.call(cbind, lapply(1:nvar, function(i) doDummySingleVar(X,lv,ntot,i)  )) 
+  Xd = createDummies(X,lv)
   
   
   ###e1
-  e1 = t( apply(Xd, 1L, function(x) x-th.pr) )                     
+  e1 = minus_mat(Xd,th.pr)                     
 
-  
   ###e2 
-  catvals = get_unique_values_per_column(X)
+  catvals = get_unique_values_per_column(X)                                     
   mus = apply_get_mus(th, lv, nvar,  catvals)
-  y_minus_mu = t( apply(X, 1L, function(x) x - mus ) ) 
-  combs = create_combs(nvar,polychors) #combs 0 based!!
-  joint_exps = apply_get_joint_exp(combs, th, lv, nvar, catvals) #E(y1y2)  #completely written in c++ now!
-  sigma =  joint_exps - t(  lavaan::lav_matrix_vech(tcrossprod(mus) ,diagonal=FALSE) )  #E(y1y2)-mu1mu2
+  y_minus_mu = minus_mat(X, mus)                         
+  combs = create_combs(nvar,polychors) 
+  joint_exps = apply_get_joint_exp(combs, th, lv, nvar, catvals) #E(y1y2)  
+  sigma =  compute_sigma(joint_exps,mus)  #E(y1y2)-mu1mu2
+  s_vech = compute_vech_by_row(y_minus_mu) #s=c( (y1-mu1)(y2-mu2)....
   
-  s_vech = t(apply(y_minus_mu, 1L, function(i){    lavaan::lav_matrix_vech(tcrossprod(i) ,diagonal=FALSE) })) #s=c( (y1-mu1)(y2-mu2)....
-  
-
-  
-  e2 = t( apply(s_vech, 1L, function(x) x - sigma ) ) 
-  
+  e2 = minus_mat(s_vech,sigma)    
   
   
   ###e
@@ -78,7 +85,7 @@ estfun.GEE <- function(object){
   ###weigthing matrix
   
   #get sigma_indi
-  mat1 = create_weight_matrix(th, lv, nvar, polychors)                                           
+  mat1 = create_upper_weight_matrix(th, lv, nvar, polychors)                                           
 
   diag2 = colMeans(s_vech^2) - sigma^2
   mat2 = matrix(diag(c(diag2)),ncol=length(diag2) )
@@ -88,7 +95,6 @@ estfun.GEE <- function(object){
 
   
   #Delta
-  params <- lav_object_inspect_coef(object,type = "free", add.labels = F)
   Delta <- numDeriv::jacobian(func=compute.moments, x = params, lavmodel = lavmodel)
 
   

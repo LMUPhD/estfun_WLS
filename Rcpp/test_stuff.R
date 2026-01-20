@@ -13,274 +13,86 @@ fit.wls <- lavaan::cfa(model_lav, data = Data, ordered = TRUE, estimator = "WLS"
 object = fit.wls
 
 
-#from estfun_gee
-lavsamplestats <- object@SampleStats
-lavdata        <- object@Data
-nvar <- ncol(lavsamplestats@cov[[1]])
-X <- lavdata@X[[1]]
-polychors = object@Fit@Sigma.hat[[1]] 
-th = object@Fit@TH[[1]]
-th.pr = pnorm( th*-1)                                       #add the diagonal of the model implied matrix!                   
-lv = lavdata@ov[["nlev"]]
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 ################################################################################
 ################################################################################
-# adjust code so that it is zero based and efficient!
-Rcpp::sourceCpp("Rcpp/test_stuff.cpp")
-combs = create_combs(nvar,polychors) #combs 0 based!!
-catvals = get_unique_values_per_column(X)
-apply_get_joint_exp(combs,th,lv,nvar,catvals) #joint exps
-apply_get_mus(th,lv,nvar,catvals) #mus
-mat1_c = create_weight_matrix(th, lv, nvar, polychors)
-View(mat1_c)
+null_model <- lavaan::cfa(model_lav, data = Data, ordered = TRUE, estimator = "WLS", std.lv=F, do.fit=F )
+#only starting values
 
-
-#R
-source("support.R")
-combs = rbind(  combn(1:nvar,2), lavaan::lav_matrix_vech(polychors,diagonal=FALSE) ) 
-catvals = lapply(1:nvar, function(x)  as.integer(names(table(X[,x]))) )
-apply(combs, 2L, function(x) get_joint_exp(x, th, lv, nvar, catvals)  ) #joint exps
-unlist(lapply(1:nvar, function(x) get_mus(x, th, lv, nvar, catvals)   )) #mus
-
-seqnc=c()
-for(l in seq(nvar)){ seqnc = c(seqnc,sapply(head(seq(lv[l]),-1), function(y) paste(l,y )  ))}
-combs_indi = combn(seqnc,2)
-sigma_indi = apply(combs_indi, 2L, function(x) get_sigmas_indi(x, th, lv, nvar, polychors)  ) 
-mat1 = matrix(0, ncol=length(th),nrow=length(th))
-mat1[lower.tri(mat1)] = sigma_indi 
-mat1[upper.tri(mat1)] <- t(mat1)[upper.tri(t(mat1))] # 
-diag(mat1) = th.pr*(1-th.pr)        #mus for indicators in diagonal      
-View(mat1)
-################################################################################
-################################################################################
-# get GLIST
-
-params <- lav_object_inspect_coef(object,type = "free", add.labels = F)
-
-lavmodel <- object@Model
-GLIST <- lav_model_x2GLIST(lavmodel = lavmodel, x=params, type="free")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-################################################################################
-################################################################################
-# get sigma indi in C++?
-get_sigmas_indi <- function(c, th, lv, nvar, polychors){
-  cl1 = as.numeric(substr(c, 1, 1))
-  cl2 = as.numeric(substr(c, 3, 3))
-  
-  if(length(unique(cl1))==1){
-    p = 1
-  } else {
-    p = polychors[cl1[1],cl1[2]]
-  }
-  
-  selcols = getCols(lv,nvar)
-  wth1=selcols[[cl1[1]]][1]:selcols[[cl1[1]]][2]
-  wth2=selcols[[cl1[2]]][1]:selcols[[cl1[2]]][2]
-  th_vars = rbind(th[wth1],th[wth2])
-  
-  p_katkat = pbv_rcpp_pbvnorm0(th_vars[1,cl2[1]]*-1, th_vars[2,cl2[2]]*-1, p) #P(y_jk,y_sh)
-  sigma_indi = p_katkat - pbv_rcpp_pnorm0(th_vars[1,cl2[1]]*-1)*pbv_rcpp_pnorm0(th_vars[2,cl2[2]]*-1) #P(y_jk,y_sh) - mu_jk*mu_sh
-  
-  
-  return(sigma_indi)
-}
-
-c= combs_indi[,1]
-get_sigmas_indi(c, th, lv, nvar, polychors)
-sigma_indi = apply(combs_indi, 2L, function(x) get_sigmas_indi(x, th, lv, nvar, polychors)  ) 
-mat1 = matrix(0, ncol=length(th),nrow=length(th))
-mat1[lower.tri(mat1)] = sigma_indi 
-mat1[upper.tri(mat1)] <- t(mat1)[upper.tri(t(mat1))] # 
-diag(mat1) = th.pr*(1-th.pr)        #mus for indicators in diagonal      
-
-
-#############
-Rcpp::sourceCpp("Rcpp/test_stuff.cpp")
-mat1_cpp <- create_weight_matrix_optimized(th, lv, nvar, polychors)
-
-
-################################################################################
-################################################################################
-# compute sigma in C++
-
-lav_object_inspect_coef(object,type = "free", add.labels = F)
-GLIST <- lav_model_x2GLIST(lavmodel = lavmodel, x=params, type="free")
-Sigma.hat <- computeSigmaHat(lavmodel = lavmodel, GLIST = GLIST)
-
-
-#to compute sigma is not difficult (muthen1984, Formula 6)
-GLIST$lambda %*% GLIST$psi %*% t(GLIST$lambda) + GLIST$theta 
-
-#Formula 5 does not have to be specificalls considered. E(y*) is always zero (nu)
-#(muthen1984, Formula 5)
-GLIST$nu + GLIST$lambda %*% GLIST$alpha
-
-
-
-
-################################################################################
-################################################################################
 source("Rcpp/support_rcpp.R")
-unlist(lapply(1:nvar, function(x) get_mus(x, th, lv, nvar, catvals)   ))
+params <- lav_object_inspect_coef(object,type = "free", add.labels = F) #fitted params
+lavmodel       <- null_model@Model #lavmodel from null_model
 
+#code in jeweiliger funtion ausführen...
 
-## C++
-Rcpp::sourceCpp("Rcpp/test_stuff.cpp")
-apply_get_mus(th, lv, nvar,  catvals)
-
-
-
-
-
+#####  R
+res_long <- lav_model_x2GLIST(lavmodel = lavmodel, x=params, type="free")
+Sigma.hat_long <- computeSigmaHat(lavmodel = lavmodel, GLIST = res_long)
 
 
 
+#simpler...
+m.free.idx <- lavmodel@m.free.idx
+x.free.idx <- lavmodel@x.free.idx
+GLIST.template <- lavmodel@GLIST
+isSymmetric <- lavmodel@isSymmetric
 
-################################################################################
-################################################################################
-#how does getCols work in C++?
-Rcpp::sourceCpp("Rcpp/test_stuff.cpp")
-res_c = getCols(lv,nvar) #could change output to Rcpp::NumericMatrix but maybe not necessary
-
-
-#...and in R
-source("support.R")
-res_r = getCols(lv,nvar) 
-
-## analyze differeces
-class(res_r) #matrix array
-class(res_c) #list
-
-
-################################################################################
-################################################################################
-
-# C implementation #use R 4.4.3!!!!
-#toms462
-#Rcpp::sourceCpp("Rcpp/toms462_arma.cpp") #compile
-#pbivnor(0.5, 0.5, 0.3) #doesnt work...
-#R wrapper
-#pbivnor_cpp <- function(x, y, r) {
-#  pbivnor(x*-1, y*-1, r)
-#}
-
-#pbv rcpp
-Rcpp::sourceCpp("Rcpp/gee_rcpp_support.cpp")
-pbv_rcpp_pbvnorm(0.5, 0.5, 0.3) #that also works...
-pbivnorm__rcpp_wls(c(0.5,0.5), c(Inf,0.5), c(0.3,0.3)) #that also works...
-
-
-
-################################################################################
-################################################################################
-#get probas in C++ 
-
-
-#should be the same result
-Rcpp::sourceCpp("Rcpp/gee_rcpp_support.cpp")
-system.time(
-  apply_get_joint_exp(combs, th, lv, nvar, catvals)
-)
-print(apply_get_joint_exp(combs, th, lv, nvar, catvals))
-
-
-source("support.R")
-system.time(
-  apply(combs, 2L, function(x) get_joint_exp(x, th, lv, nvar, catvals)  ) #E(y1y2)
-)
-print(apply(combs, 2L, function(x) get_joint_exp(x, th, lv, nvar, catvals)  ) )
-
-
-
-
-################################################################################
-############################### Sandbox ########################################
-################################################################################
-
-################################################ redefine function...
-
-getCols <- function(lv,nvar){
-  maxcols = mincols = c()
-  maxcol = mincol = 0
-  for(i in 1:nvar){
-    mincol = maxcol+1
-    maxcol = maxcol + lv[i]-1
-    mincols = c(mincols,mincol)
-    maxcols = c(maxcols,maxcol)
+simple_x2GLIST <- function(x, 
+                           m.free.idx,     # list of matrix indices for each matrix
+                           x.free.idx,     # list of parameter vector indices for each matrix
+                           GLIST.template, # template with correct dimensions
+                           isSymmetric = NULL) {  # optional for symmetric matrices
+  
+  GLIST <- GLIST.template  # start with template
+  
+  for (mm in 1:length(GLIST)) {
+    # Skip if no free parameters for this matrix
+    if (length(m.free.idx[[mm]]) == 0) next
+    
+    # Assign values from parameter vector to matrix
+    GLIST[[mm]][m.free.idx[[mm]]] <- x[x.free.idx[[mm]]]
+    
+    # Make symmetric if needed (for psi/theta matrices)
+    if (!is.null(isSymmetric) && isSymmetric[mm]) {
+      GLIST[[mm]][upper.tri(GLIST[[mm]])] <- t(GLIST[[mm]])[upper.tri(GLIST[[mm]])]
+    }
   }
-  return(cbind(mincols,maxcols))
+  
+  return(GLIST)
 }
 
+res_short= simple_x2GLIST(
+  x = params,
+  m.free.idx = m.free.idx,
+  x.free.idx = x.free.idx,
+  GLIST.template = GLIST.template,
+  isSymmetric = isSymmetric
+)
 
 
+identical(res_short, lavmodel@GLIST)
+identical(res_long, lavmodel@GLIST) #theta not filled up with estimates because they're not in params...
+View(null_model@Model@GLIST)
+View(object@Model@GLIST)
 
-get_joint_exp <- function(c, th, lv, nvar, catvals){
-  
-  selcols = getCols(lv,nvar)
-  
-  #-> Ebene: Item zu Item
-  cat_combs = expand.grid(1:lv[c[1]],1:lv[c[2]])
-  
-  vals_var1 = unlist(catvals[c[1]])
-  vals_var2 = unlist(catvals[c[2]])
-  
-  wth1=selcols[c[1],1]:selcols[c[1],2]
-  wth2=selcols[c[2],1]:selcols[c[2],2]
-  th_var1 = c(-Inf,th[wth1],Inf)
-  th_var2 = c(-Inf,th[wth2],Inf)
-  
-  #--> Ebene Kategorie-zu-Kategorie
-  
-  mu_joint = sum( apply(cat_combs, 1L, function(x){
-    s = unlist(x+1)
-    x = unlist(x)
-    p_katkat = sum(pbivnorm__rcpp_wls(x = th_var1[s[1]], y =th_var2[s[2]], rho = c[3]), 
-                   pbivnorm__rcpp_wls(x = th_var1[s[1]-1], y =th_var2[s[2]], rho = c[3])*-1,
-                   pbivnorm__rcpp_wls(x = th_var1[s[1]], y =th_var2[s[2]-1], rho = c[3])*-1,
-                   pbivnorm__rcpp_wls(x = th_var1[s[1]-1], y =th_var2[s[2]-1], rho = c[3]))
-    #print(p_katkat)
-    vals_var1[x[1]]*vals_var2[x[2]]*p_katkat
-  }) )
-  
-  return(mu_joint)
-}
 
+##### C++ 
+Rcpp::sourceCpp("Rcpp/test_stuff.cpp")
+res_c = x2GLIST_withtheta(x = params,
+                          m_free_idx = m.free.idx,
+                          x_free_idx = x.free.idx,
+                          GLIST_template = GLIST.template,
+                          isSymmetric = isSymmetric)
+identical(res_long,res_c)
+
+
+## compute sigma_hat
+lambda = res_c$lambda
+psi = res_c$psi
+theta = res_c$theta
+
+sigma_hat = compute_SigmaHat(lambda,psi,theta)
+
+identical(Sigma.hat_long[[1]],sigma_hat)
+
+Scores_c = compute_scores(Delta,W.inv,e)

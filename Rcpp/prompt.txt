@@ -1,0 +1,59 @@
+setResidualElements.LISREL <- function(MLIST = NULL,
+                                       num.idx = NULL,
+                                       ov.y.dummy.ov.idx = NULL,
+                                       ov.y.dummy.lv.idx = NULL) {
+  # remove num.idx from ov.y.dummy.*
+  if (length(num.idx) > 0L && length(ov.y.dummy.ov.idx) > 0L) {
+    n.idx <- which(ov.y.dummy.ov.idx %in% num.idx)
+    if (length(n.idx) > 0L) {
+      ov.y.dummy.ov.idx <- ov.y.dummy.ov.idx[-n.idx]
+      ov.y.dummy.lv.idx <- ov.y.dummy.lv.idx[-n.idx]
+    }
+  }
+  
+  # force non-numeric theta elements to be zero
+  if (length(num.idx) > 0L) {
+    diag(MLIST$theta)[-num.idx] <- 0.0
+  } else {
+    diag(MLIST$theta) <- 0.0
+  }
+  if (length(ov.y.dummy.ov.idx) > 0L) {
+    MLIST$psi[cbind(ov.y.dummy.lv.idx, ov.y.dummy.lv.idx)] <- 0.0
+  }
+  
+  # special case: PSI=0, and lambda=I (eg ex3.12)
+  if (ncol(MLIST$psi) > 0L &&
+      sum(diag(MLIST$psi)) == 0.0 && all(diag(MLIST$lambda) == 1)) {
+    ### FIXME: more elegant/general solution??
+    diag(MLIST$psi) <- 1
+    Sigma.hat <- computeSigmaHat.LISREL(MLIST = MLIST, delta = FALSE)
+    diag.Sigma <- diag(Sigma.hat) - 1.0
+  } else if (ncol(MLIST$psi) == 0L) {
+    diag.Sigma <- rep(0, ncol(MLIST$theta))
+  } else {
+    Sigma.hat <- computeSigmaHat.LISREL(MLIST = MLIST, delta = FALSE)
+    diag.Sigma <- diag(Sigma.hat)
+  }
+  
+  if (is.null(MLIST$delta)) {
+    delta <- rep(1, length(diag.Sigma))
+  } else {
+    delta <- MLIST$delta
+  }
+  # theta = DELTA^(-2) - diag( LAMBDA (I-B)^-1 PSI (I-B)^-T t(LAMBDA) )
+  RESIDUAL <- as.vector(1 / (delta * delta) - diag.Sigma)
+  if (length(num.idx) > 0L) {
+    diag(MLIST$theta)[-num.idx] <- RESIDUAL[-num.idx]
+  } else {
+    diag(MLIST$theta) <- RESIDUAL
+  }
+  
+  # move ov.y.dummy 'RESIDUAL' elements from THETA to PSI
+  if (length(ov.y.dummy.ov.idx) > 0L) {
+    MLIST$psi[cbind(ov.y.dummy.lv.idx, ov.y.dummy.lv.idx)] <-
+      MLIST$theta[cbind(ov.y.dummy.ov.idx, ov.y.dummy.ov.idx)]
+    MLIST$theta[cbind(ov.y.dummy.ov.idx, ov.y.dummy.ov.idx)] <- 0.0
+  }
+  
+  MLIST
+}
