@@ -440,22 +440,8 @@ NumericVector compute_sigma(const NumericVector& joint_exps,
   return sigma;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-//******************************************************************************
-
 // [[Rcpp::export]]
+
 NumericVector compute_moments(Rcpp::NumericVector params, Rcpp::List model_context){
   
   //GLIST
@@ -494,4 +480,185 @@ NumericVector compute_moments(Rcpp::NumericVector params, Rcpp::List model_conte
   
   //concat
   return(concat_two(th_pr,sigma));
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//******************************************************************************
+// [[Rcpp::export]]
+NumericMatrix compute_jacobian(
+    Rcpp::NumericVector params, 
+    Rcpp::List model_context,
+    double eps = 1e-4) {
+  
+  int n_params = params.size();
+  int n_outputs;
+  
+  // Get output dimension by calling function once
+  NumericVector f_base = compute_moments(params, model_context);
+  n_outputs = f_base.size();
+  
+  NumericMatrix J(n_outputs, n_params);
+  
+  // Richardson extrapolation (most accurate)
+  for (int j = 0; j < n_params; j++) {
+    std::vector<double> D(4); // 4-point Richardson
+    std::vector<double> steps(4);
+    
+    for (int k = 0; k < 4; k++) {
+      double h = eps * std::max(1.0, std::abs(params[j])) / std::pow(2.0, k);
+      steps[k] = h;
+      
+      NumericVector params_plus = clone(params);
+      NumericVector params_minus = clone(params);
+      params_plus[j] += h;
+      params_minus[j] -= h;
+      
+      NumericVector f_plus = compute_moments(params_plus, model_context);
+      NumericVector f_minus = compute_moments(params_minus, model_context);
+      
+      // Store central differences for this step size
+      std::vector<double> central_diff(n_outputs);
+      for (int i = 0; i < n_outputs; i++) {
+        central_diff[i] = (f_plus[i] - f_minus[i]) / (2.0 * h);
+      }
+      
+      if (k == 0) {
+        for (int i = 0; i < n_outputs; i++) {
+          J(i, j) = central_diff[i];
+        }
+      } else {
+        // Richardson extrapolation
+        for (int i = 0; i < n_outputs; i++) {
+          double current = J(i, j);
+          J(i, j) = current + (current - central_diff[i]) / (std::pow(4.0, k) - 1.0);
+        }
+      }
+    }
+  }
+  
+  
+  return J;
+}
+
+
+// [[Rcpp::export]]
+NumericMatrix compute_jacobian_fast(
+    Rcpp::NumericVector params, 
+    Rcpp::List model_context,
+    double eps = 1e-4) {
+  
+  int n_params = params.size();
+  NumericVector f_base = compute_moments(params, model_context);
+  int n_outputs = f_base.size();
+  
+  NumericMatrix J(n_outputs, n_params);
+  
+  // Pre-allocate working vectors (ONCE)
+  NumericVector params_plus = clone(params);
+  NumericVector params_minus = clone(params);
+  NumericVector f_plus(n_outputs);
+  NumericVector f_minus(n_outputs);
+  
+  for (int j = 0; j < n_params; j++) {
+    double original_val = params[j];
+    double h = eps * std::max(1.0, std::abs(original_val));
+    
+    // Reuse vectors instead of reallocating
+    params_plus = clone(params);
+    params_minus = clone(params);
+    
+    params_plus[j] = original_val + h;
+    params_minus[j] = original_val - h;
+    
+    f_plus = compute_moments(params_plus, model_context);
+    f_minus = compute_moments(params_minus, model_context);
+    
+    for (int i = 0; i < n_outputs; i++) {
+      J(i, j) = (f_plus[i] - f_minus[i]) / (2.0 * h);
+    }
+    
+    // Restore (not strictly needed since we clone each iteration)
+    params_plus[j] = original_val;
+    params_minus[j] = original_val;
+  }
+  
+  return J;
+}
+
+
+// [[Rcpp::export]]
+Rcpp::NumericMatrix compute_jacobian_simple(
+    Rcpp::NumericVector params, 
+    Rcpp::List model_context,
+    double eps = 1e-4) {
+  
+  // This uses r=2 (similar to R's numDeriv with method="simple")
+  int r = 2;  // Two-point Richardson (balance of speed/accuracy)
+  int n_params = params.size();
+  
+  Rcpp::NumericVector f_base = compute_moments(params, model_context);
+  int n_outputs = f_base.size();
+  
+  Rcpp::NumericMatrix J(n_outputs, n_params);
+  Rcpp::NumericVector params_perturbed(n_params);
+  Rcpp::NumericVector f_plus(n_outputs);
+  Rcpp::NumericVector f_minus(n_outputs);
+  
+  for (int j = 0; j < n_params; j++) {
+    double xj = params[j];
+    
+    // Two step sizes for Richardson r=2
+    double h1 = eps * std::max(1.0, std::abs(xj));
+    double h2 = h1 / 2.0;
+    
+    // Results for step size h1
+    params_perturbed = Rcpp::clone(params);
+    params_perturbed[j] = xj + h1;
+    f_plus = compute_moments(params_perturbed, model_context);
+    
+    params_perturbed = Rcpp::clone(params);
+    params_perturbed[j] = xj - h1;
+    f_minus = compute_moments(params_perturbed, model_context);
+    
+    // First approximation (central difference with h1)
+    std::vector<double> D1(n_outputs);
+    for (int i = 0; i < n_outputs; i++) {
+      D1[i] = (f_plus[i] - f_minus[i]) / (2.0 * h1);
+    }
+    
+    // Results for step size h2
+    params_perturbed = Rcpp::clone(params);
+    params_perturbed[j] = xj + h2;
+    f_plus = compute_moments(params_perturbed, model_context);
+    
+    params_perturbed = Rcpp::clone(params);
+    params_perturbed[j] = xj - h2;
+    f_minus = compute_moments(params_perturbed, model_context);
+    
+    // Second approximation (central difference with h2)
+    std::vector<double> D2(n_outputs);
+    for (int i = 0; i < n_outputs; i++) {
+      D2[i] = (f_plus[i] - f_minus[i]) / (2.0 * h2);
+    }
+    
+    // Richardson extrapolation (r=2)
+    // D_improved = D2 + (D2 - D1) / (4^1 - 1) = D2 + (D2 - D1)/3
+    for (int i = 0; i < n_outputs; i++) {
+      J(i, j) = D2[i] + (D2[i] - D1[i]) / 3.0;
+    }
+  }
+  
+  return J;
 }

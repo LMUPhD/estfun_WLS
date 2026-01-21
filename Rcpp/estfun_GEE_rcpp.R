@@ -86,8 +86,7 @@ estfun.GEE <- function(object){
 
   
   #Delta
-  Delta <- numDeriv::jacobian(func=compute_moments, x = params, 
-                              model_context = model.context)
+  Delta <- compute_jacobian_fast(params,model.context)
 
   
   ### combine matrices

@@ -6,7 +6,7 @@ setwd("C:\\Users\\classe\\Desktop\\Diss\\Paper3\\estfun_WLS")
 
 ###uni
 source("application/univ_simu.R") #simulate data (unidimensional model)
-fits_random <- datagen(schwellen = 4, ID=2000, times=1, items=9)
+fits_random <- datagen(schwellen = 1, ID=2000, times=1, items=9)
 Data = fits_random[["data"]][["data1"]]
 fit.wls <- lavaan::cfa(fits_random[["model"]][["model1"]], data = Data, ordered = TRUE, estimator = "WLS", std.lv=F )
 
@@ -39,7 +39,7 @@ system.time(
 scores_rcpp = estfun.GEE(fit.wls)
 
 #compare
-any(  abs(scores_rcpp - scores_r) > 1e+9 ) #very accurate!!!
+any(  abs(scores_rcpp - scores_r) > 1e-7 ) #accurate enough...
 
 ######   microbenchmarking estfun.gee
 library(profvis)

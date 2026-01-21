@@ -501,14 +501,12 @@ Rcpp::NumericVector apply_get_mus(const NumericVector& th,
 
 
 // [[Rcpp::export]]
-Rcpp::NumericMatrix create_upper_weight_matrix(const Rcpp::NumericVector& th_r,
-                                   const Rcpp::IntegerVector& lv_r,
+Rcpp::NumericMatrix create_upper_weight_matrix(const Rcpp::NumericVector& th,
+                                   const Rcpp::IntegerVector& lv,
                                    int nvar,
                                    const Rcpp::NumericMatrix& polychors) {
   
   // Convert inputs
-  std::vector<double> th = as<std::vector<double>>(th_r);
-  Rcpp::IntegerVector lv = as<Rcpp::IntegerVector>(lv_r);
   int n_th = th.size();
   
   // Initialize matrix
@@ -749,7 +747,6 @@ Rcpp::NumericMatrix compute_sigma_hat(const Rcpp::NumericMatrix& lambda,
 //}
 
 ///********************************************************************
-
 // [[Rcpp::export]]
 NumericVector compute_moments(Rcpp::NumericVector params, Rcpp::List model_context){
   
@@ -790,5 +787,50 @@ NumericVector compute_moments(Rcpp::NumericVector params, Rcpp::List model_conte
   //concat
   return(concat_two(th_pr,sigma));
 }
+
+// [[Rcpp::export]]
+NumericMatrix compute_jacobian_fast(
+    Rcpp::NumericVector params, 
+    Rcpp::List model_context,
+    double eps = 1e-4) {
+  
+  int n_params = params.size();
+  NumericVector f_base = compute_moments(params, model_context);
+  int n_outputs = f_base.size();
+  
+  NumericMatrix J(n_outputs, n_params);
+  
+  // Pre-allocate working vectors (ONCE)
+  NumericVector params_plus = clone(params);
+  NumericVector params_minus = clone(params);
+  NumericVector f_plus(n_outputs);
+  NumericVector f_minus(n_outputs);
+  
+  for (int j = 0; j < n_params; j++) {
+    double original_val = params[j];
+    double h = eps * std::max(1.0, std::abs(original_val));
+    
+    // Reuse vectors instead of reallocating
+    params_plus = clone(params);
+    params_minus = clone(params);
+    
+    params_plus[j] = original_val + h;
+    params_minus[j] = original_val - h;
+    
+    f_plus = compute_moments(params_plus, model_context);
+    f_minus = compute_moments(params_minus, model_context);
+    
+    for (int i = 0; i < n_outputs; i++) {
+      J(i, j) = (f_plus[i] - f_minus[i]) / (2.0 * h);
+    }
+    
+    // Restore (not strictly needed since we clone each iteration)
+    params_plus[j] = original_val;
+    params_minus[j] = original_val;
+  }
+  
+  return J;
+}
+
 
 

@@ -53,9 +53,24 @@ compute.moments <- function(params, lavmodel = NULL) {
   sigma =  joint_exps - t(  lavaan::lav_matrix_vech(tcrossprod(mus) ,diagonal=FALSE) )  #E(y1y2)-mu1mu2
   return(c(th.pr,sigma))
 }
-moments_r = compute.moments(params,lavmodel)
+jaco_r = numDeriv::jacobian(func=compute.moments, x = params, 
+                            lavmodel=lavmodel)
+system.time(numDeriv::jacobian(func=compute.moments, x = params, lavmodel=lavmodel))
+
 
 #C++
-Rcpp::sourceCpp("Rcpp/test_stuff.cpp") #shit...
-moments_c = compute_moments(params,model.context)
-moments_c
+Rcpp::sourceCpp("Rcpp/test_stuff.cpp") 
+jaco_c1 = compute_jacobian(params,model.context)
+jaco_c2 = compute_jacobian_fast(params,model.context)
+jaco_c3 = compute_jacobian_simple(params,model.context)
+jaco_c4 = numDeriv::jacobian(func=compute_moments, x = params, model_contex=model.context)
+
+system.time(compute_jacobian(params,model.context))
+system.time(compute_jacobian_fast(params,model.context))
+system.time(compute_jacobian_simple(params,model.context))
+system.time(numDeriv::jacobian(func=compute_moments, x = params, model_contex=model.context))
+identical(jaco_r,jaco_c1,jaco_c2,jaco_c3,jaco_c4)
+
+#test
+any(abs(jaco_c2 - jaco_c3) > 1e-8 )
+
