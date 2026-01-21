@@ -239,8 +239,26 @@ NumericMatrix createDummies(const NumericMatrix& X,
 }
 
 
-///adjust so that it begins to count with with 0!
-std::vector<std::vector<int>> getCols(const std::vector<int>& lv, int nvar) {
+NumericVector concat_two(NumericVector A, NumericVector B) {
+  int nA = A.length();
+  int nB = B.length();
+  NumericVector C(nA + nB);
+  
+  // Copy A
+  for(int i = 0; i < nA; i++) {
+    C[i] = A[i];
+  }
+  
+  // Copy B
+  for(int j = 0; j < nB; j++) {
+    C[nA + j] = B[j];
+  }
+  
+  return C;
+}
+
+
+std::vector<std::vector<int>> getCols(const IntegerVector& lv, int nvar) {
   std::vector<std::vector<int>> result(nvar, std::vector<int>(2));
   int maxcol = -1;
   
@@ -426,10 +444,10 @@ Rcpp::NumericVector apply_get_joint_exp(Rcpp::List combs,
 
 
 // [[Rcpp::export]]
-Rcpp::NumericVector apply_get_mus(const std::vector<double>& th, 
-                                  const std::vector<int>& lv, 
+Rcpp::NumericVector apply_get_mus(const NumericVector& th, 
+                                  const IntegerVector& lv, 
                                   int nvar, 
-                                  const std::vector<std::vector<int>>& catvals){
+                                  const List& catvals){
   
   
   Rcpp::NumericVector result(nvar);
@@ -457,7 +475,9 @@ Rcpp::NumericVector apply_get_mus(const std::vector<double>& th,
     
     for (int i = 0; i<= max_lv_idx; i++){
       double prob_cat;
-      double cat_val = catvals[var][i];
+      
+      IntegerVector catvals_var = catvals[var];
+      double cat_val = catvals_var[i];
       
       if (i==0){
         prob_cat = pbv_rcpp_pnorm0(p_item[0]);
@@ -488,7 +508,7 @@ Rcpp::NumericMatrix create_upper_weight_matrix(const Rcpp::NumericVector& th_r,
   
   // Convert inputs
   std::vector<double> th = as<std::vector<double>>(th_r);
-  std::vector<int> lv = as<std::vector<int>>(lv_r);
+  Rcpp::IntegerVector lv = as<Rcpp::IntegerVector>(lv_r);
   int n_th = th.size();
   
   // Initialize matrix
@@ -703,30 +723,72 @@ List x2GLIST_withtheta(NumericVector x,
 
 
 // [[Rcpp::export]]
-arma::mat compute_SigmaHat(const arma::mat& lambda,
-                           const arma::mat& psi,
-                           const arma::mat& theta) {
-  return lambda * psi * lambda.t() + theta;  
+Rcpp::NumericMatrix compute_sigma_hat(const Rcpp::NumericMatrix& lambda,
+                                      const Rcpp::NumericMatrix& psi,
+                                      const Rcpp::NumericMatrix& theta) {
+  arma::mat lambda_arma = Rcpp::as<arma::mat>(lambda);
+  arma::mat psi_arma = Rcpp::as<arma::mat>(psi);	
+  arma::mat theta_arma = Rcpp::as<arma::mat>(theta);
+  return wrap(lambda_arma * psi_arma * lambda_arma.t() + theta_arma);  
 }
 
 
 
 
 
+// transform so to rcpp (like compute_sigma_hat)
+//// [[Rcpp::export]]
+//arma::mat compute_scores(const arma::mat& Delta, 
+//                         const arma::mat& W_inv, 
+//                         const arma::mat& e){
+//  
+//  arma::mat Scores = (Delta.t() * W_inv * e.t()).t();
+//  
+//  return(Scores);
+//  
+//}
+
+///********************************************************************
 
 // [[Rcpp::export]]
-arma::mat compute_scores(const arma::mat& Delta, 
-                         const arma::mat& W_inv, 
-                         const arma::mat& e){
+NumericVector compute_moments(Rcpp::NumericVector params, Rcpp::List model_context){
   
-  arma::mat Scores = (Delta.t() * W_inv * e.t()).t();
+  //GLIST
+  Rcpp::List m_free_idx = model_context["m.free.idx"];
+  Rcpp::List x_free_idx = model_context["x.free.idx"];
+  Rcpp::List GLIST_template = model_context["GLIST.template"];
+  Rcpp::LogicalVector isSymmetric = model_context["isSymmetric"];
   
-  return(Scores);
   
+  Rcpp::List GLIST = x2GLIST_withtheta(params,m_free_idx,x_free_idx,
+                                       GLIST_template,isSymmetric);
+  
+  
+  //simga_hat
+  NumericMatrix lambda = GLIST["lambda"];	
+  NumericMatrix psi = GLIST["psi"];
+  NumericMatrix theta = GLIST["theta"];
+  
+  Rcpp::NumericMatrix sigma_hat = compute_sigma_hat(lambda,psi,theta);
+  
+  //th.pr
+  NumericMatrix tau = GLIST["tau"];
+  NumericVector th = tau;
+  NumericVector th_pr = pbv_rcpp_pnorm(tau*-1);
+  
+  //mus
+  IntegerVector lv = model_context["lv"];
+  int nvar = model_context["nvar"];
+  List catvals = model_context["catvals"];
+  NumericVector mus = apply_get_mus(th, lv, nvar,  catvals);
+  
+  //sigma
+  List combs = create_combs(nvar,sigma_hat);
+  NumericVector joint_exps = apply_get_joint_exp(combs,th,lv,nvar,catvals);
+  NumericVector sigma = compute_sigma(joint_exps,mus);
+  
+  //concat
+  return(concat_two(th_pr,sigma));
 }
-
-///********************************************************************
-///********************************************************************
-
 
 

@@ -16,83 +16,46 @@ object = fit.wls
 
 ################################################################################
 ################################################################################
-null_model <- lavaan::cfa(model_lav, data = Data, ordered = TRUE, estimator = "WLS", std.lv=F, do.fit=F )
-#only starting values
+lavdata        <- object@Data
+lavmodel  <- object@Model
+lavsamplestats <- object@SampleStats
+nvar <- ncol(lavsamplestats@cov[[1]])
+lv = lavdata@ov[["nlev"]]
+X <- lavdata@X[[1]]
+catvals = lapply(1:nvar, function(x)  as.numeric(names(table(X[,x]))) )
+#model context for compute.moments
+model.context = list()
+model.context[["m.free.idx"]] <- lavmodel@m.free.idx
+model.context[["x.free.idx"]] <- lavmodel@x.free.idx
+model.context[["GLIST.template"]] <- lavmodel@GLIST
+model.context[["isSymmetric"]] <- lavmodel@isSymmetric
+model.context[["lv"]] = lv
+model.context[["nvar"]] = nvar
+model.context[["catvals"]] = catvals
 
-source("Rcpp/support_rcpp.R")
-params <- lav_object_inspect_coef(object,type = "free", add.labels = F) #fitted params
-lavmodel       <- null_model@Model #lavmodel from null_model
-
-#code in jeweiliger funtion ausführen...
-
-#####  R
-res_long <- lav_model_x2GLIST(lavmodel = lavmodel, x=params, type="free")
-Sigma.hat_long <- computeSigmaHat(lavmodel = lavmodel, GLIST = res_long)
+#params
+idx <- which(object@ParTable$free > 0L)
+est <- object@Fit@est
+params <- est[idx]
 
 
-
-#simpler...
-m.free.idx <- lavmodel@m.free.idx
-x.free.idx <- lavmodel@x.free.idx
-GLIST.template <- lavmodel@GLIST
-isSymmetric <- lavmodel@isSymmetric
-
-simple_x2GLIST <- function(x, 
-                           m.free.idx,     # list of matrix indices for each matrix
-                           x.free.idx,     # list of parameter vector indices for each matrix
-                           GLIST.template, # template with correct dimensions
-                           isSymmetric = NULL) {  # optional for symmetric matrices
-  
-  GLIST <- GLIST.template  # start with template
-  
-  for (mm in 1:length(GLIST)) {
-    # Skip if no free parameters for this matrix
-    if (length(m.free.idx[[mm]]) == 0) next
-    
-    # Assign values from parameter vector to matrix
-    GLIST[[mm]][m.free.idx[[mm]]] <- x[x.free.idx[[mm]]]
-    
-    # Make symmetric if needed (for psi/theta matrices)
-    if (!is.null(isSymmetric) && isSymmetric[mm]) {
-      GLIST[[mm]][upper.tri(GLIST[[mm]])] <- t(GLIST[[mm]])[upper.tri(GLIST[[mm]])]
-    }
-  }
-  
-  return(GLIST)
+#R
+source("support.R")
+compute.moments <- function(params, lavmodel = NULL) {
+  GLIST <- lav_model_x2GLIST(lavmodel = lavmodel, x=params, type="free")
+  Sigma.hat <- computeSigmaHat(lavmodel = lavmodel, GLIST = GLIST)
+  polychors = Sigma.hat[[1]]
+  th = as.vector(GLIST[["tau"]])
+  th.pr = pnorm(th*-1)
+  mus = unlist(lapply(1:nvar, function(x) get_mus(x, th, lv, nvar, catvals)   ))
+  combs = rbind(  combn(1:nvar,2), lavaan::lav_matrix_vech(polychors,diagonal=FALSE) )           
+  joint_exps = apply(combs, 2L, function(x) get_joint_exp(x, th, lv, nvar, catvals)  ) #E(y1y2) 
+  sigma =  joint_exps - t(  lavaan::lav_matrix_vech(tcrossprod(mus) ,diagonal=FALSE) )  #E(y1y2)-mu1mu2
+  return(c(th.pr,sigma))
 }
+moments_r = compute.moments(params,lavmodel)
 
-res_short= simple_x2GLIST(
-  x = params,
-  m.free.idx = m.free.idx,
-  x.free.idx = x.free.idx,
-  GLIST.template = GLIST.template,
-  isSymmetric = isSymmetric
-)
-
-
-identical(res_short, lavmodel@GLIST)
-identical(res_long, lavmodel@GLIST) #theta not filled up with estimates because they're not in params...
-View(null_model@Model@GLIST)
-View(object@Model@GLIST)
-
-
-##### C++ 
-Rcpp::sourceCpp("Rcpp/test_stuff.cpp")
-res_c = x2GLIST_withtheta(x = params,
-                          m_free_idx = m.free.idx,
-                          x_free_idx = x.free.idx,
-                          GLIST_template = GLIST.template,
-                          isSymmetric = isSymmetric)
-identical(res_long,res_c)
-
-
-## compute sigma_hat
-lambda = res_c$lambda
-psi = res_c$psi
-theta = res_c$theta
-
-sigma_hat = compute_SigmaHat(lambda,psi,theta)
-
-identical(Sigma.hat_long[[1]],sigma_hat)
-
-Scores_c = compute_scores(Delta,W.inv,e)
+#C++
+Rcpp::sourceCpp("Rcpp/test_stuff.cpp") #shit...
+moments_c = compute_moments(params,model.context)
+moments_c

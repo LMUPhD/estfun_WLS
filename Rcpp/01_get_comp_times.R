@@ -6,7 +6,7 @@ setwd("C:\\Users\\classe\\Desktop\\Diss\\Paper3\\estfun_WLS")
 
 ###uni
 source("application/univ_simu.R") #simulate data (unidimensional model)
-fits_random <- datagen(schwellen = 6, ID=2000, times=1, items=9)
+fits_random <- datagen(schwellen = 4, ID=2000, times=1, items=9)
 Data = fits_random[["data"]][["data1"]]
 fit.wls <- lavaan::cfa(fits_random[["model"]][["model1"]], data = Data, ordered = TRUE, estimator = "WLS", std.lv=F )
 

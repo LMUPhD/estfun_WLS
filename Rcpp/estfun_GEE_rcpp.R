@@ -4,28 +4,6 @@ Rcpp::sourceCpp("Rcpp/gee_rcpp_support.cpp")
 
 estfun.GEE <- function(object){
  
-  compute.moments <- function(params, lavmodel = NULL) {
-    
-    m.free.idx <- lavmodel@m.free.idx
-    x.free.idx <- lavmodel@x.free.idx
-    GLIST.template <- lavmodel@GLIST
-    isSymmetric <- lavmodel@isSymmetric
-    
-    GLIST <- x2GLIST_withtheta(x = params,
-                               m_free_idx = m.free.idx,
-                               x_free_idx = x.free.idx,
-                               GLIST_template = GLIST.template,
-                               isSymmetric = isSymmetric)
-    sigma_hat = compute_SigmaHat(GLIST$lambda,GLIST$psi,GLIST$theta)
-    th = as.vector(GLIST[["tau"]])
-    
-    th.pr = pbv_rcpp_pnorm(th*-1)
-    mus = apply_get_mus(th, lv, nvar,  catvals)
-    combs = create_combs(nvar,sigma_hat)         
-    joint_exps = apply_get_joint_exp(combs, th, lv, nvar, catvals)  #E(y1y2) 
-    sigma =  compute_sigma(joint_exps,mus)  #E(y1y2)-mu1mu2
-    return(c(th.pr,sigma))
-  }
    
   # shortcuts
   lavdata        <- object@Data
@@ -49,6 +27,21 @@ estfun.GEE <- function(object){
   Score.mat <- matrix(NA, ntot, npar) #empty matrix
   
   
+  lv = lavdata@ov[["nlev"]]
+  catvals = get_unique_values_per_column(X)                                     
+  
+  
+  #model context for compute.moments
+  model.context = list()
+  model.context[["m.free.idx"]] <- lavmodel@m.free.idx
+  model.context[["x.free.idx"]] <- lavmodel@x.free.idx
+  model.context[["GLIST.template"]] <- lavmodel@GLIST
+  model.context[["isSymmetric"]] <- lavmodel@isSymmetric
+  model.context[["lv"]] = lv
+  model.context[["nvar"]] = nvar
+  model.context[["catvals"]] = catvals
+  
+  
   ################################################################################
   ################################# GEE ##########################################
   ################################################################################
@@ -60,7 +53,6 @@ estfun.GEE <- function(object){
   th.pr = pbv_rcpp_pnorm( th*-1)                                       #add the diagonal of the model implied matrix!                   
   
   #dummies
-  lv = lavdata@ov[["nlev"]]
   Xd = createDummies(X,lv)
   
   
@@ -68,7 +60,6 @@ estfun.GEE <- function(object){
   e1 = minus_mat(Xd,th.pr)                     
 
   ###e2 
-  catvals = get_unique_values_per_column(X)                                     
   mus = apply_get_mus(th, lv, nvar,  catvals)
   y_minus_mu = minus_mat(X, mus)                         
   combs = create_combs(nvar,polychors) 
@@ -95,7 +86,8 @@ estfun.GEE <- function(object){
 
   
   #Delta
-  Delta <- numDeriv::jacobian(func=compute.moments, x = params, lavmodel = lavmodel)
+  Delta <- numDeriv::jacobian(func=compute_moments, x = params, 
+                              model_context = model.context)
 
   
   ### combine matrices
